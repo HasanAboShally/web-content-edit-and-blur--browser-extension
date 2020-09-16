@@ -1,0 +1,4 @@
+body.disable-links :any-link, body.disable-links a{
+    /* pointer-events: none; */
+    cursor: default;
+}

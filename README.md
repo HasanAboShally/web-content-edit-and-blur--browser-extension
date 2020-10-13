@@ -1,7 +1,7 @@
 
 ![N|Logo](https://i.ibb.co/c8mr09n/ceb.png)
 
-![Version Number](https://dummyimage.com/100x50/fff/05eb05.png&text=v1.1.2)
+![Version Number](https://dummyimage.com/100x50/fff/cccccc.png&text=v1.2.0)
 
 # Easily edit or blur elements on any webpage.
 
@@ -10,6 +10,16 @@
 #### This browser extension allows users to:
 1) Directly edit text or content on any webpage
 2) Blur web content (e.g., blurring sensitive or personal data for sharing screenshots for example)
+
+
+#### How to use:
+- Click on the extension’s icon to switch between the 3 modes: Idle, Edit, Blur
+
+- In Blur mode: Click any element once to blur it, click twice for extra blur, click again to unblur
+
+- In Edit mode: Double-click any image to replace it
+
+- Press the ESC key anytime to switch back to Idle mode
 
 ## Browser Support - (( Install Now ))
 

@@ -38,3 +38,8 @@
 ![screenshot](https://lh3.googleusercontent.com/AY_xComKKhyQSrXPy2TuCoA2z-5qS8pWv6-B07vjFsANqX9v2ztUGwC6JehoZTvCHLe0DQQEKw=w640-h400-e365-rj-sc0x00ffffff)
 
 ![screenshot](https://lh3.googleusercontent.com/y7p2KOtxZ0WOkwHxm-ovZ5y2fW5pCtz3hsPLorBODd-ZkG2Vt1MJcOa1McdnhpChazcQ0VqRyQ=w640-h400-e365-rj-sc0x00ffffff)
+
+
+## Todo:
+
+1. Allow users to "Replace all" occurrences of a specific text.  

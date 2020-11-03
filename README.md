@@ -11,7 +11,7 @@
 - [1.2.0] Replacing images with local ones
 
 
-#### Some usecases this plugin can be useful in:
+## Some usecases this plugin can be useful in:
 - Creating quick mockups based on existing pages
 - Communicating changes in web pages
 - Bluring (hiding) sensitive data when taking screenshots for example
@@ -24,7 +24,7 @@
 </div>
 
 
-#### How to use:
+## How to use:
 - Click on the extension’s icon to switch between the 3 modes: Idle, Edit, Blur
 - In Blur mode: Click any element once to blur it, click twice for extra blur, click again to unblur
 - In Edit mode: Double-click any image to replace it

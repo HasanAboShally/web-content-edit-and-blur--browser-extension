@@ -4,9 +4,9 @@
 
 # Easily edit, replace or blur elements on any webpage.
 
-"Content Edit & Blur" is a simple browser extension which allows users to edit or replace texts and images on any webpage directly from the borwser, and also blur content when needed.
+"Content Edit & Blur" is a simple browser extension which allows users to edit or replace texts and images on any webpage directly from the browser, and also blur content when needed.
 
-#### Some usecases this plugin can be useful in:
+#### Some use-cases this plugin can be useful in:
 - Creating quick mockups based on existing pages
 - Communicating changes in web pages
 - Bluring (hiding) sensitive data when taking screenshots for example

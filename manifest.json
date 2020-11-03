@@ -5,9 +5,9 @@
 	
 	"name": "Content Edit & Blur",
 	"author": "Hasan Abo-Shally",
-	"version": "1.2.0",
-	"description": "Easily edit or blur elements on any webpage",
-	"homepage_url": "https://hasan.life",
+	"version": "1.3.0",
+	"description": "Easily edit, replace or blur elements on any webpage",
+	"homepage_url": "https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension",
 	"icons": {
 		"128": "images/app-icon-128.png"
 	},

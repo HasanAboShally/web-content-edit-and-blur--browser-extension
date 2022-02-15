@@ -23,16 +23,19 @@
 
 ## Browser Support - Click to Install Now
 
+![alt text](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/images/100x100/chrome.png?raw=true)
+
+
 <div float="left">
-  <a target="_" href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh"><img  hspace="0" src="https://www.flaticon.com/svg/static/icons/svg/179/179313.svg" width="100" /></a><a target="_" href="https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur"><img  hspace="50" src="https://www.flaticon.com/svg/static/icons/svg/179/179320.svg" width="100" /></a><a target="_" href="https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl"><img  hspace="0" src="https://www.flaticon.com/svg/static/icons/svg/179/179318.svg" width="100" /></a>
+  <a target="_" href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh"><img  hspace="0" src="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/images/100x100/chrome.png?raw=true" width="100" /></a><a target="_" href="https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur"><img  hspace="50" src="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/images/100x100/firefox.png?raw=true" width="100" /></a><a target="_" href="https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl"><img  hspace="0" src="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/images/100x100/edge.png?raw=true" width="100" /></a>
 </div>
 
 
 ## Users Quotes
 
-> Great tool for editing screenshots cleanly. Saves me a ton of time! **- _David Curwin_** 
+> Great tool for editing screenshots cleanly. Saves me a ton of time! **- _David Curwin_**
 
-> Super simple, as a product manager from time to time I have to screenshot from the web or mock up products, iv only been using this for one day and this has already filled my needs easily and quickly, TWICE!  **- _Odi Paneth_** 
+> Super simple, as a product manager from time to time I have to screenshot from the web or mock up products, iv only been using this for one day and this has already filled my needs easily and quickly, TWICE!  **- _Odi Paneth_**
 
 ## Screenshots
 
@@ -42,6 +45,6 @@
 
 
 #### Changelog:
-- [1.3.0] Replacing all occurrences of a text in a webpage 
+- [1.3.0] Replacing all occurrences of a text in a webpage
 - [1.2.0] Replacing images with local ones
 

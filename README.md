@@ -23,11 +23,10 @@
 
 ## Browser Support - Click to Install Now
 
-![alt text](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/images/100x100/chrome.png?raw=true)
-
-
 <div float="left">
-  <a target="_" href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh"><img  hspace="0" src="https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/icons/100x100/chrome.png" width="100" /></a><a target="_" href="https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur"><img  hspace="50" src="https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/icons/100x100/firefox.png" width="100" /></a><a target="_" href="https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl"><img  hspace="0" src="https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/icons/100x100/edge.png" width="100" /></a>
+  <a target="_" href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh"><img  hspace="0" src="https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/icons/100x100/chrome.png" width="100" /></a>
+  <a target="_" href="https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur"><img  hspace="50" src="https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/icons/100x100/firefox.png" width="100" /></a>
+  <a target="_" href="https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl"><img  hspace="0" src="https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/icons/100x100/edge.png" width="100" /></a>
 </div>
 
 

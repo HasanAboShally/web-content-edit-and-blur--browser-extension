@@ -38,9 +38,9 @@
 
 ## Screenshots
 
-![screenshot depicting how to select between the 3 modes: Idle, Edit, Blur; via clicking the extension's pencil icon in your browser extension drawer](https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/how-to-steps)
+![screenshot depicting how to select between the 3 modes: Idle, Edit, Blur; via clicking the extension's pencil icon in your browser extension drawer](https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/how-to-steps.jpg)
 
-![screenshot of 2 examples. First one is the use of editing behind blurred elements using edit mode. Second one is with an example using blur mode to hide an element](https://lh3.googleusercontent.com/y7p2KOtxZ0WOkwHxm-ovZ5y2fW5pCtz3hsPLorBODd-ZkG2Vt1MJcOa1McdnhpChazcQ0VqRyQ=w640-h400-e365-rj-sc0x00ffffff)
+![screenshot of 2 examples. First one is the use of editing behind blurred elements using edit mode. Second one is with an example using blur mode to hide an element](https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/example-screenshot.jpg)
 
 #### Changelog
 

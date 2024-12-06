@@ -75,7 +75,35 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
   }
 });
 
-chrome.action.onClicked.addListener((tab) => {
+// chrome.action.onClicked.addListener((tab) => {
+//   if (tabModeIndexes[tab.id] === undefined) {
+//     initOnTab(tab.id, () => {
+//       switchToNextMode(tab.id);
+//     });
+//     return;
+//   }
+
+//   switchToNextMode(tab.id);
+// });
+
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (message === "idle") {
+    tabModeIndexes[sender.tab.id] = 0;
+    switchMode(sender.tab.id, "idle");
+  }
+});
+
+// chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+//   //   chrome.scripting.executeScript({
+//   //     target: { tabId: details.tabId },
+//   //     files: ["page-code.js"],
+//   //   });
+//   initOnTab(tab.id, () => {
+//     switchToNextMode(tab.id);
+//   });
+// });
+
+chrome.action.onClicked.addListener(async (tab) => {
   if (tabModeIndexes[tab.id] === undefined) {
     initOnTab(tab.id, () => {
       switchToNextMode(tab.id);
@@ -84,11 +112,4 @@ chrome.action.onClicked.addListener((tab) => {
   }
 
   switchToNextMode(tab.id);
-});
-
-chrome.runtime.onMessage.addListener((message, sender) => {
-  if (message === "idle") {
-    tabModeIndexes[sender.tab.id] = 0;
-    switchMode(sender.tab.id, "idle");
-  }
 });

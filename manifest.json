@@ -1,19 +1,12 @@
 {
-  "update_url": "https://clients2.google.com/service/update2/crx",
   "manifest_version": 3,
   "name": "Content Edit & Blur",
-  "author": "Hasan Abo-Shally",
   "version": "1.4.0",
-  "description": "Easily edit, replace or blur elements on any webpage",
-  "homepage_url": "https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension",
-  "icons": {
-    "128": "images/app-icon-128.png"
-  },
+  "description": "Easily edit, replace, or blur elements on any webpage",
+  "permissions": ["activeTab", "scripting", "storage"],
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["activeTab","scripting"],
-  "host_permissions": ["*://*/*"],
   "action": {
     "default_icon": {
       "19": "images/icons/19x19/icon-idle.png",

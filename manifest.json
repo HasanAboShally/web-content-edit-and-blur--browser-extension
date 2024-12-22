@@ -1,5 +1,4 @@
 {
-  "update_url": "https://clients2.google.com/service/update2/crx",
   "manifest_version": 3,
   "name": "Content Edit & Blur",
   "author": "Hasan Abo-Shally",

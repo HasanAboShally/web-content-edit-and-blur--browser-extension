@@ -1,8 +1,10 @@
-![N|Logo](https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/ceb-logo.png)
 
-![Version Number](https://dummyimage.com/100x50/fff/cccccc.png&text=v1.3.0)
+# Content Edit & Blue — Browser Extension   
 
-# Easily edit, replace or blur elements on any webpage
+
+
+
+## Easily edit, replace or blur elements on any webpage
 
 "Content Edit & Blur" is a simple browser extension which allows users to edit or replace texts and images on any webpage directly from the browser, and also blur content when needed.
 
@@ -38,11 +40,12 @@
 
 ## Screenshots
 
-![screenshot depicting how to select between the 3 modes: Idle, Edit, Blur; via clicking the extension's pencil icon in your browser extension drawer](https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/how-to-steps.jpg)
+![screenshot depicting how to select between the 3 modes: Idle, Edit, Blur; via clicking the extension's pencil icon in your browser extension drawer](https://lh3.googleusercontent.com/6Yv5KyqSb3LgXrlbknOuZayqc4sa2qC4MsIkVgjXn0IT3v1ysiLUJfZT06W1fnU0o5cwCWSjlD_aJMFQ3Cvz8I2opg=s1280-w1280-h800)
 
-![screenshot of 2 examples. First one is the use of editing behind blurred elements using edit mode. Second one is with an example using blur mode to hide an element](https://raw.githubusercontent.com/HasanAboShally/web-content-edit-and-blur--browser-extension/a288e8f298308019f73ca9b9c922e253cb836bb6/images/example-screenshot.jpg)
+
 
 #### Changelog
 
+- [1.4.0] Migrated to Chrome Extensions Manifest V3
 - [1.3.0] Replacing all occurrences of a text in a webpage
 - [1.2.0] Replacing images with local ones

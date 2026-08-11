@@ -1,4 +1,89 @@
-body.disable-links :any-link, body.disable-links a{
-    /* pointer-events: none; */
+/* Content Edit & Blur v2.0 - Page Styles */
+
+/* Disable link clicks in active modes */
+body.ceb-disable-links :any-link, 
+body.ceb-disable-links a {
     cursor: default;
+}
+
+/* Mode-specific cursors */
+body.ceb-mode-edit {
+    cursor: text;
+}
+
+body.ceb-mode-blur {
+    cursor: crosshair;
+}
+
+body.ceb-mode-hide {
+    cursor: not-allowed;
+}
+
+body.ceb-mode-draw {
+    cursor: crosshair;
+}
+
+/* Smooth blur transitions */
+[data-ceb-blur-level] {
+    transition: filter 0.2s ease;
+}
+
+/* Hidden elements - invisible but still clickable to restore */
+.ceb-hidden-element {
+    visibility: hidden !important;
+    opacity: 0 !important;
+    transition: opacity 0.2s ease;
+}
+
+/* Show hidden elements as ghost when in hide mode for easy restoration */
+body.ceb-mode-hide .ceb-hidden-element {
+    visibility: visible !important;
+    opacity: 0.2 !important;
+    outline: 2px dashed #F44336 !important;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 10px,
+        rgba(244, 67, 54, 0.1) 10px,
+        rgba(244, 67, 54, 0.1) 20px
+    ) !important;
+}
+
+/* Draw blur areas */
+.ceb-blur-area {
+    transition: opacity 0.2s ease;
+}
+
+.ceb-blur-area:hover {
+    outline: 2px solid #9C27B0;
+}
+
+/* Redact mode cursor */
+body.ceb-mode-redact {
+    cursor: crosshair;
+}
+
+/*
+ * Redaction. Unlike blur this is not recoverable: brightness(0) maps every pixel in
+ * the subtree to black regardless of content type (text, images, video, canvas), and
+ * the opaque background covers any transparent regions underneath.
+ */
+.ceb-redacted-element {
+    background-color: #000 !important;
+    filter: brightness(0) !important;
+    transition: filter 0.2s ease;
+}
+
+/* In redact mode, mark blocks so they can be found and clicked to undo. */
+body.ceb-mode-redact .ceb-redacted-element {
+    outline: 2px solid #111827 !important;
+    outline-offset: 1px;
+}
+
+/* Picker overlay is a separate fixed-position node, never styled onto page elements,
+   so it cannot shift the page layout or fight with the effects above. */
+#ceb-picker-outline,
+#ceb-picker-hud,
+#ceb-rule-highlight {
+    pointer-events: none !important;
 }

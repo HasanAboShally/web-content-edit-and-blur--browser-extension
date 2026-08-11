@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  check:
+    name: Static checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # No browser needed, so this gives fast feedback on the failures that would
+      # otherwise present as "the extension does not load".
+      - name: Validate manifest and scripts
+        run: node scripts/check.mjs
+
+  test:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The extension only loads in a headed browser, so drive a virtual display.
+      - name: Run test suites
+        run: xvfb-run -a npm test
+
+  build:
+    name: Build packages
+    runs-on: ubuntu-latest
+    needs: [check]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Read version from manifest
+        id: version
+        run: echo "value=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Build all targets
+        run: |
+          for target in chrome firefox edge; do
+            node scripts/build.mjs "$target" "${{ steps.version.outputs.value }}"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: extension-packages
+          path: dist/*.zip
+          retention-days: 14

@@ -1,0 +1,165 @@
+name: Build and Release Extension
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 2.0.0)'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Get version from tag or input
+        id: version
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build browser packages
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          node scripts/build.mjs chrome "$VERSION"
+          node scripts/build.mjs firefox "$VERSION"
+          node scripts/build.mjs edge "$VERSION"
+
+      - name: Verify packages
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version }}"
+          required=(manifest.json background.js page-code.js page-style.css context-target.js)
+          for target in chrome firefox edge; do
+            zip_path="dist/content-edit-blur-${target}-${VERSION}.zip"
+            test -f "$zip_path"
+            echo "Verifying $zip_path"
+            unzip -Z1 "$zip_path" | sort
+            for file in "${required[@]}"; do
+              unzip -Z1 "$zip_path" | grep -Fxq "$file"
+            done
+            unzip -Z1 "$zip_path" | grep -q '^images/'
+            if unzip -Z1 "$zip_path" | grep -Eq '(^|/)(popup\.html|popup\.css|popup\.js)$'; then
+              echo "Package contains removed popup files: $zip_path" >&2
+              exit 1
+            fi
+            while IFS= read -r entry; do
+              case "$entry" in
+                manifest.json|background.js|page-code.js|page-style.css|context-target.js|images/|images/*) ;;
+                *)
+                  echo "Unexpected package entry in $zip_path: $entry" >&2
+                  exit 1
+                  ;;
+              esac
+            done < <(unzip -Z1 "$zip_path")
+          done
+          unzip -p "dist/content-edit-blur-firefox-${VERSION}.zip" manifest.json | node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(0, 'utf8')); if (!Array.isArray(m.background?.scripts) || m.background.scripts[0] !== 'background.js' || m.background.service_worker || m.browser_specific_settings?.gecko?.id !== '{content-edit-blur@hasanaboshally}') process.exit(1);"
+          unzip -p "dist/content-edit-blur-chrome-${VERSION}.zip" manifest.json | node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(0, 'utf8')); if (m.background?.service_worker !== 'background.js' || m.background.scripts) process.exit(1);"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            dist/content-edit-blur-chrome-${{ steps.version.outputs.version }}.zip
+            dist/content-edit-blur-firefox-${{ steps.version.outputs.version }}.zip
+            dist/content-edit-blur-edge-${{ steps.version.outputs.version }}.zip
+          body: |
+            ## Content Edit & Blur v${{ steps.version.outputs.version }}
+            
+            ### Installation
+            - **Chrome**: [Chrome Web Store](https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh)
+            - **Firefox**: [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur)
+            - **Edge**: [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl)
+            
+            ### Manual Installation
+            Download the ZIP file for your browser and load it as an unpacked extension.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-packages
+          path: dist/*.zip
+
+  # Publish to Chrome Web Store
+  publish-chrome:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-packages
+          path: dist
+
+      - name: Get version from tag
+        id: version
+        run: |
+          set -euo pipefail
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Publish to Chrome Web Store
+        uses: mnao305/chrome-extension-upload@v5.0.0
+        continue-on-error: true
+        with:
+          file-path: dist/content-edit-blur-chrome-${{ steps.version.outputs.version }}.zip
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+
+  # Publish to Firefox Add-ons
+  publish-firefox:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-packages
+          path: dist
+
+      - name: Get version from tag
+        id: version
+        run: |
+          set -euo pipefail
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Publish to Firefox Add-ons
+        uses: yayuyokitano/firefox-addon@v0.0.6-alpha
+        continue-on-error: true
+        with:
+          api_key: ${{ secrets.FIREFOX_API_KEY }}
+          api_secret: ${{ secrets.FIREFOX_API_SECRET }}
+          guid: '{content-edit-blur@hasanaboshally}'
+          xpi_path: dist/content-edit-blur-firefox-${{ steps.version.outputs.version }}.zip
+
+  # Note: Edge Add-ons API is more complex
+  # You may need to use their Partner Center API manually
+  # or use a tool like publish-browser-extension

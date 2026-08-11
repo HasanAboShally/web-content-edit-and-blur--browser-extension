@@ -2,21 +2,59 @@
   "manifest_version": 3,
   "name": "Content Edit & Blur",
   "author": "Hasan Abo-Shally",
-  "version": "1.4.0",
-  "description": "Easily edit, replace or blur elements on any webpage",
-  "homepage_url": "https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension",
+  "version": "2.1.0",
+  "description": "Edit, replace, blur, redact, or hide anything on any webpage. Rules persist across reloads and can apply site-wide.",
+  "homepage_url": "https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/",
   "icons": {
     "128": "images/app-icon-128.png"
   },
   "background": {
     "service_worker": "background.js"
   },
-  "permissions": ["activeTab","scripting"],
+  "permissions": ["activeTab", "scripting", "storage", "contextMenus"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["context-target.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
   "action": {
     "default_icon": {
       "19": "images/icons/19x19/icon-idle.png",
       "38": "images/icons/38x38/icon-idle.png"
     },
     "default_title": "Content Edit & Blur"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+E"
+      },
+      "description": "Toggle toolbar"
+    },
+    "toggle-edit-mode": {
+      "suggested_key": {
+        "default": "Alt+1"
+      },
+      "description": "Switch to Edit mode"
+    },
+    "toggle-blur-mode": {
+      "suggested_key": {
+        "default": "Alt+2"
+      },
+      "description": "Switch to Blur mode"
+    },
+    "toggle-hide-mode": {
+      "suggested_key": {
+        "default": "Alt+3"
+      },
+      "description": "Switch to Hide mode"
+    },
+    "toggle-redact-mode": {
+      "description": "Switch to Redact mode"
+    }
   }
 }

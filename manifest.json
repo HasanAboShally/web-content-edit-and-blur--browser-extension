@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Content Edit & Blur",
   "author": "Hasan Abo-Shally",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Edit, replace, blur, redact, or hide anything on any webpage. Rules persist across reloads and can apply site-wide.",
   "homepage_url": "https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/",
   "icons": {

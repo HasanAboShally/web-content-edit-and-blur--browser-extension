@@ -299,7 +299,10 @@ check('a long pen stroke keeps its full span',
 
 // ---------- Regression: annotations must be invisible to the element picker ----------
 // The picker used to lock onto the extension's own annotation wrapper, which both
-// shadowed the page content underneath and persisted a bogus positional rule.
+// shadowed the page content underneath and persisted a bogus positional rule — a bare
+// nth-of-type index counting extension-owned divs, which resolves to something
+// unrelated on the next load. Annotations are now pointer-events:none, so the click
+// lands on the page element beneath, which is what the user was aiming at.
 const pickerBox = await page.evaluate(() => {
   const el = [...document.querySelectorAll('.ceb-annotation')].find(e => e.dataset.cebNoteKind === 'pen');
   const r = el.getBoundingClientRect();
@@ -317,8 +320,12 @@ const hovered = await page.evaluate(() => {
 await page.mouse.click(pickerBox[0], pickerBox[1]);
 await page.waitForTimeout(700);
 const rulesAfter = (await readKey(pageKey))?.rules ?? [];
-check('clicking an annotation in blur mode creates no rule',
-  rulesAfter.length === rulesBefore, `${rulesBefore} -> ${rulesAfter.length}: ${JSON.stringify(rulesAfter.map(r => r.selector))}`);
+const added = rulesAfter.slice(rulesBefore).map(r => r.selector);
+check('clicking through an annotation never targets extension chrome',
+  added.every(s => !/ceb-/.test(s) && !/^body > div:nth-of-type/.test(s)),
+  JSON.stringify(added));
+check('clicking through an annotation reaches the page element beneath',
+  added.length === 1 && added[0] === '#card-1', JSON.stringify(added));
 
 // ---------- Regression: screenshot restores its chrome even on a dead context ----------
 // sendMessage throws synchronously once the extension context is invalidated, which

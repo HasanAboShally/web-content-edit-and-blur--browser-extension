@@ -35,7 +35,7 @@
 | 👁️ **Hide** | Completely hide any element with one click. |
 | ⬛ **Redact** *(Pro)* | Cover an element with an irreversible solid block — nothing survives to be recovered. |
 | ▢ **Draw** | Draw rectangles anywhere to create custom blur or solid regions. |
-| 🖊️ **Annotate** | Mark up the page: arrows, circles, text notes — plus boxes and freehand pen in Pro. |
+| 🖊️ **Annotate** | Mark up the page: arrows, circles, a highlighter and text notes — plus boxes, freehand pen and numbered steps in Pro. |
 | 💾 **Auto-Save** | Changes persist automatically and restore on page reload. |
 | 📸 **Screenshot** | Capture the page with all your edits applied. The toolbar hides itself first. |
 
@@ -53,8 +53,9 @@ Switching to **Pro** (bottom-left of the toolbar) adds:
   re-scope it, or delete it individually
 - **Export / Import** — save your rules to a JSON file and load them elsewhere
 - **Draw style** — choose whether drawn regions blur or block out
-- **Annotate: box and pen** — a rectangle outline and a freehand pen, on top of the
-  arrow, circle and text note available in Simple
+- **Annotate: box, pen and numbered steps** — a rectangle outline, a freehand pen and
+  click-to-place numbered badges, on top of the arrow, circle, highlighter and text
+  note available in Simple
 
 Your choice is remembered.
 
@@ -66,12 +67,22 @@ Pick **Annotate** and choose a tool:
 |------|-----|
 | ➜ **Arrow** | Drag from the tail to the point you want to indicate. |
 | ◯ **Circle** | Drag a box; the ellipse is drawn inside it. Better than freehand for circling things — hand-drawn circles look shaky. |
+| ▰ **Highlighter** | Drag across text to highlight it. Unlike the pen it uses `mix-blend-mode: multiply`, so it behaves like real marker ink: the text underneath stays black and readable instead of washing out to grey. Chisel tip, its own pastel swatches. |
 | **T Text** | Click, then type. `Enter` commits, `Shift+Enter` adds a line, `Esc` closes. Click an existing note to edit it. |
 | ▭ **Box** *(Pro)* | Drag a rectangle outline. |
 | ✎ **Pen** *(Pro)* | Freehand. The stroke is smoothed as you draw. |
+| ➊ **Step** *(Pro)* | Click to drop a numbered badge. Numbers are assigned by position, so deleting badge 2 renumbers the rest instead of leaving a gap. |
 
-Pick a colour from the swatches. To remove a mark, leave Annotate mode and click it,
-or delete it from the rules panel in Pro.
+Pick a colour from the swatches — the row changes with the tool, and the highlighter
+keeps its own colour independently of the line colour.
+
+**Moving and changing a mark.** In Annotate mode, hover a mark to reveal its handles.
+Drag the middle to move it, or a handle to resize it. A click (rather than a drag)
+removes a shape, or opens the editor on a text note. Hit testing follows the ink, not
+the bounding box, so you can still draw *inside* a circle you have already drawn.
+
+Outside Annotate mode marks are inert — they do not intercept clicks meant for the
+page beneath them.
 
 **Annotations are not saved by default.** Most marks exist to explain one screenshot,
 so they disappear on reload rather than following you around. If you want them to stay,
@@ -165,6 +176,33 @@ It reads nothing else and sends nothing anywhere. The full editing script is onl
 once you actually activate a mode.
 
 ## Changelog
+
+### v2.3.0 (2026)
+- ✨ **New**: **Highlighter** — a marker pen that uses `mix-blend-mode: multiply`, so it
+  tints the background without washing out the text underneath. Chisel tip, and its own
+  colour kept separately from the line colour.
+- ✨ **New**: **Numbered step badges** *(Pro)* — click to place ➊ ➋ ➌ for walkthroughs.
+  Numbers come from position, so deleting one renumbers the rest instead of leaving a gap.
+- ✨ **New**: **Move and resize** any mark. Hover it in Annotate mode for handles; drag
+  the body to move, a handle to resize. Hit testing follows the ink rather than the
+  bounding box, so you can still draw inside a circle you have already drawn.
+- 🐛 **Fixed**: Annotations sat above the page and swallowed clicks meant for it — and
+  because the old gesture was "click to remove", a mark over a link deleted itself
+  instead of following the link. Marks are now inert outside Annotate mode.
+- 🐛 **Fixed**: Abandoning a drag part-way — pressing `Esc`, or switching mode mid-drag —
+  left the mark at its dragged position but recorded nothing in history, so the next
+  undo discarded the move *and* the action before it, and a kept mark snapped back on
+  reload. The mark now returns to where it started.
+- 🐛 **Fixed**: Clicking a resize handle deleted the mark instead of doing nothing, even
+  though the cursor over it promised a resize.
+- 🐛 **Fixed**: A text note was grabbable across the full width of its wrap box rather
+  than its actual words, so a short note stole drags that began well clear of it. A
+  wrapped note is now also grabbable on every line, not just its first.
+- 🐛 **Fixed**: Dragging a mark quietly restacked it above its neighbours, so what was
+  drawn on top and what could be grabbed disagreed.
+- 🐛 **Fixed**: A note placed but never typed into could be captured by an unrelated
+  action's undo snapshot, which then resurrected it as an invisible empty mark — and
+  could write it to storage under **Keep after reload**.
 
 ### v2.2.0 (2026)
 - ✨ **New**: Annotate mode — arrows, circles and text notes, plus boxes and a smoothed

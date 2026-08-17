@@ -46,7 +46,7 @@
     //   rule        { id, kind: 'blur'|'hide'|'redact', selector, level, scope }
     //   area        { id, kind: 'blur'|'redact', x, y, width, height, scope }
     //   replacement { id, oldText, newText, scope }
-    //   annotation  { id, kind: 'ellipse'|'rect'|'arrow'|'pen'|'text',
+    //   annotation  { id, kind: 'ellipse'|'rect'|'arrow'|'pen'|'marker'|'text'|'step',
     //                 points: [[x,y], ...], text, color, size, boxW, persist, scope }
     //
     // scope is 'page' (this exact URL) or 'site' (every page on this origin).
@@ -57,16 +57,33 @@
     // for a single screenshot. `persist` opts an annotation into being saved.
     const SCHEMA_VERSION = 2;
     const KINDS = ['blur', 'hide', 'redact'];
-    const ANNOTATION_KINDS = ['ellipse', 'rect', 'arrow', 'pen', 'text'];
+    const ANNOTATION_KINDS = ['ellipse', 'rect', 'arrow', 'pen', 'marker', 'text', 'step'];
+    // Kinds grouped by how their geometry behaves, so the many places that branch on
+    // shape stay in step with each other as tools are added.
+    const FREEHAND_KINDS = ['pen', 'marker'];          // sampled path, N points
+    const TWO_POINT_KINDS = ['ellipse', 'rect', 'arrow']; // dragged out, resizable
+    const ANCHORED_KINDS = ['text', 'step'];           // placed with a click, 1 point
+    // Hidden in Simple mode. Kept next to the kind lists so the two cannot drift: a tool
+    // marked ceb-pro-only in the toolbar but missing here stays selected after a switch
+    // to Simple, leaving the user in a tool whose button they cannot see.
+    const PRO_ANNOTATE_TOOLS = ['rect', 'pen', 'step'];
+    // Shown in the rules panel, where "rect" and "pen" mean nothing to a reader.
+    const ANNOTATION_LABELS = {
+        ellipse: 'circle', rect: 'box', arrow: 'arrow',
+        pen: 'drawing', marker: 'highlight', text: 'note', step: 'step badge'
+    };
 
-    // Minimum points each kind needs to be renderable: a start and an end, except free
-    // text which is anchored by a single corner.
-    const ANNOTATION_MIN_POINTS = { ellipse: 2, rect: 2, arrow: 2, pen: 2, text: 1 };
+    // Minimum points each kind needs to be renderable: a start and an end, except text
+    // and step badges which are anchored by a single point.
+    const ANNOTATION_MIN_POINTS = { ellipse: 2, rect: 2, arrow: 2, pen: 2, marker: 2, text: 1, step: 1 };
     // A pen stroke is bounded so a long scribble cannot stall the render path or bloat
     // storage. Both limits are enforced by thinning the stroke, never by cutting it
     // short, so its shape is always preserved end to end.
     const PEN_MAX_POINTS = 600;
     const PEN_MIN_GAP = 2;
+    // A marker is a chisel tip, not a ballpoint: far wider, and drawn with flat caps.
+    const MARKER_SIZE = 16;
+    const STEP_RADIUS = 14;
 
     // Evenly thins a list down to at most `max` entries, always keeping the first and
     // last so the stroke still starts and ends where the user put it.
@@ -80,6 +97,14 @@
     }
 
     const ANNOTATION_PALETTE = ['#e11d48', '#f59e0b', '#16a34a', '#2563eb', '#111827'];
+    // A highlighter needs its own palette. These colours are multiplied into the page
+    // rather than painted over it, and the line-work palette above is far too saturated
+    // for that — multiplying #e11d48 over text leaves an almost black smear.
+    const MARKER_PALETTE = ['#fde047', '#86efac', '#93c5fd', '#f9a8d4', '#fdba74'];
+
+    function paletteFor(kind) {
+        return kind === 'marker' ? MARKER_PALETTE : ANNOTATION_PALETTE;
+    }
 
     let state = { rules: [], areas: [], replacements: [], annotations: [] };
 
@@ -95,6 +120,7 @@
         drawKind: 'blur',              // 'blur' | 'redact' for newly drawn areas
         annotateTool: 'arrow',         // active annotation tool
         annotateColor: ANNOTATION_PALETTE[0],
+        annotateMarkerColor: MARKER_PALETTE[0], // tracked separately: see MARKER_PALETTE
         annotateKeep: false            // whether new annotations survive a reload
     };
 
@@ -102,8 +128,9 @@
     // stroke-width and font-size, so both are validated rather than trusted. An imported
     // file is untrusted input: anything but an exact 6-digit hex is replaced, which makes
     // it impossible to smuggle in extra declarations the way a raw string could.
-    function safeColor(value) {
-        return /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? String(value) : ANNOTATION_PALETTE[0];
+    function safeColor(value, fallback) {
+        const ok = /^#[0-9a-fA-F]{6}$/.test(String(value || ''));
+        return ok ? String(value) : (fallback || ANNOTATION_PALETTE[0]);
     }
 
     function safeNumber(value, min, max, fallback) {
@@ -132,16 +159,19 @@
         // A stray multi-thousand-point pen stroke would stall the render path. Thin it
         // rather than truncating, which would cut the stroke short instead of keeping
         // its shape.
-        const capped = raw.kind === 'pen' ? decimate(points, PEN_MAX_POINTS) : points.slice(0, 2);
+        const capped = FREEHAND_KINDS.includes(raw.kind)
+            ? decimate(points, PEN_MAX_POINTS)
+            : points.slice(0, ANCHORED_KINDS.includes(raw.kind) ? 1 : 2);
 
         return {
             id: raw.id || newId('n'),
             kind: raw.kind,
             points: capped,
             text: raw.kind === 'text' ? String(raw.text || '').slice(0, 2000) : '',
-            color: safeColor(raw.color),
-            size: raw.kind === 'text'
-                ? safeNumber(raw.size, 10, 72, 16)
+            color: safeColor(raw.color, paletteFor(raw.kind)[0]),
+            size: raw.kind === 'text' ? safeNumber(raw.size, 10, 72, 16)
+                : raw.kind === 'marker' ? safeNumber(raw.size, 4, 60, MARKER_SIZE)
+                : raw.kind === 'step' ? safeNumber(raw.size, 8, 48, STEP_RADIUS)
                 : safeNumber(raw.size, 1, 20, 3),
             boxW: safeNumber(raw.boxW, 40, 1200, 220),
             persist: raw.persist === true,
@@ -268,8 +298,11 @@
             replacements: state.replacements.filter(r => r.scope === scope),
             // Annotations are page-scoped by nature - "put this arrow at these coordinates
             // on every page of the domain" has no meaning - and only saved once the user
-            // has explicitly asked to keep them.
-            annotations: scope === 'page' ? state.annotations.filter(a => a.persist) : []
+            // has explicitly asked to keep them. A note still being typed has no text yet
+            // and must not be written out as an invisible empty mark.
+            annotations: scope === 'page'
+                ? state.annotations.filter(a => a.persist && (a.kind !== 'text' || a.text !== ''))
+                : []
         };
     }
 
@@ -777,6 +810,12 @@
         if (a.kind === 'text') {
             return { x: xs[0], y: ys[0], width: a.boxW, height: 0 };
         }
+        if (a.kind === 'step') {
+            // The point is the badge's centre, not a corner, so it lands under the
+            // cursor that placed it.
+            const r = a.size + 2;
+            return { x: xs[0] - r, y: ys[0] - r, width: r * 2, height: r * 2 };
+        }
         const pad = annotationPadding(a);
         return {
             x: Math.min(...xs) - pad,
@@ -784,6 +823,15 @@
             width: (Math.max(...xs) - Math.min(...xs)) + pad * 2,
             height: (Math.max(...ys) - Math.min(...ys)) + pad * 2
         };
+    }
+
+    // Step badges are numbered by their position among the other badges rather than
+    // carrying a stored number. Deleting badge 2 renumbers the rest instead of leaving
+    // a gap, and undo restores the sequence for free.
+    function stepNumberOf(a) {
+        const steps = state.annotations.filter(x => x.kind === 'step');
+        const index = steps.findIndex(x => x.id === a.id);
+        return index === -1 ? steps.length + 1 : index + 1;
     }
 
     // A mouse-drawn polyline is visibly jagged. Emitting a quadratic curve through the
@@ -840,6 +888,38 @@
             const el = common(document.createElementNS(SVG_NS, 'path'));
             el.setAttribute('d', penPath(pts));
             svg.appendChild(el);
+        } else if (a.kind === 'marker') {
+            const el = common(document.createElementNS(SVG_NS, 'path'));
+            el.setAttribute('d', penPath(pts));
+            // Flat caps read as a chisel tip; round ones would give the stroke the
+            // lozenge ends of a felt pen. The wrapper supplies the multiply blend that
+            // makes this behave like ink rather than paint — see renderAnnotation.
+            el.setAttribute('stroke-linecap', 'butt');
+            svg.appendChild(el);
+        } else if (a.kind === 'step') {
+            const r = a.size;
+            const cx = pts[0][0];
+            const cy = pts[0][1];
+            const disc = document.createElementNS(SVG_NS, 'circle');
+            disc.setAttribute('cx', String(cx));
+            disc.setAttribute('cy', String(cy));
+            disc.setAttribute('r', String(r));
+            disc.setAttribute('fill', a.color);
+            disc.setAttribute('stroke', '#ffffff');
+            disc.setAttribute('stroke-width', '2');
+            svg.appendChild(disc);
+
+            const label = document.createElementNS(SVG_NS, 'text');
+            label.setAttribute('x', String(cx));
+            label.setAttribute('y', String(cy));
+            label.setAttribute('text-anchor', 'middle');
+            label.setAttribute('dominant-baseline', 'central');
+            label.setAttribute('fill', '#ffffff');
+            label.setAttribute('font-size', String(Math.round(r * 1.15)));
+            label.setAttribute('font-family', '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif');
+            label.setAttribute('font-weight', '700');
+            label.textContent = String(stepNumberOf(a));
+            svg.appendChild(label);
         } else if (a.kind === 'arrow') {
             const [from, to] = pts;
             const angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
@@ -873,46 +953,41 @@
         el.dataset.cebNoteId = a.id;
         el.dataset.cebNoteKind = a.kind;
 
+        // Annotations are never hit-testable. They sit above the page, so leaving them
+        // clickable meant a mark laid over a link swallowed the click — and, because the
+        // handler used to be "click to remove", silently deleted itself instead of
+        // following the link. All interaction now goes through the annotate overlay,
+        // which hit-tests against the geometry, so marks only respond in Annotate mode.
+        const shared = `
+            position: absolute;
+            left: ${bounds.x}px;
+            top: ${bounds.y}px;
+            z-index: 2147483641;
+            pointer-events: none;
+        `;
+
         if (a.kind === 'text') {
             el.textContent = a.text;
-            el.style.cssText = `
-                position: absolute;
-                left: ${bounds.x}px;
-                top: ${bounds.y}px;
+            el.style.cssText = shared + `
                 width: ${a.boxW}px;
                 color: ${a.color};
                 font: 600 ${a.size}px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                 white-space: pre-wrap;
                 overflow-wrap: break-word;
-                z-index: 2147483641;
-                cursor: text;
                 padding: 2px 4px;
                 text-shadow: 0 1px 2px rgba(255,255,255,.85), 0 -1px 2px rgba(255,255,255,.85),
                              1px 0 2px rgba(255,255,255,.85), -1px 0 2px rgba(255,255,255,.85);
             `;
-            el.title = 'Click to edit';
-            el.addEventListener('click', function (event) {
-                event.stopPropagation();
-                event.preventDefault();
-                editTextAnnotation(a.id);
-            });
         } else {
-            el.style.cssText = `
-                position: absolute;
-                left: ${bounds.x}px;
-                top: ${bounds.y}px;
+            el.style.cssText = shared + `
                 width: ${bounds.width}px;
                 height: ${bounds.height}px;
-                z-index: 2147483641;
-                cursor: pointer;
             `;
-            el.title = 'Click to remove';
+            // What makes a highlighter a highlighter. Plain alpha over black text washes
+            // it out to grey; multiply is how real ink behaves — yellow over white gives
+            // yellow, yellow over black text stays black, so the words stay readable.
+            if (a.kind === 'marker') el.style.mixBlendMode = 'multiply';
             el.appendChild(buildAnnotationShape(a, bounds));
-            el.addEventListener('click', function (event) {
-                event.stopPropagation();
-                event.preventDefault();
-                removeAnnotation(a.id);
-            });
         }
 
         document.body.appendChild(el);
@@ -928,7 +1003,132 @@
         document.querySelectorAll('.ceb-annotation').forEach(el => el.remove());
     }
 
-    // ---------- Annotate mode ----------
+    // ---------- Hit testing ----------
+    //
+    // Every kind is reduced to a polyline (or a filled box) so one distance test covers
+    // all of them. Testing against the ink rather than the bounding box is what lets you
+    // draw inside a circle you have already drawn — a box test would treat that whole
+    // hollow middle as "on the ellipse" and start a move instead.
+
+    const HIT_SLOP = 8;           // how near the ink counts as touching it
+    const HANDLE_RADIUS = 6;
+    const DRAG_THRESHOLD = 4;     // below this a drag is really a click
+
+    // Samples an annotation's outline in document coordinates.
+    function annotationOutline(a) {
+        const pts = a.points;
+        if (a.kind === 'ellipse') {
+            const cx = (pts[0][0] + pts[1][0]) / 2;
+            const cy = (pts[0][1] + pts[1][1]) / 2;
+            const rx = Math.abs(pts[1][0] - pts[0][0]) / 2;
+            const ry = Math.abs(pts[1][1] - pts[0][1]) / 2;
+            const out = [];
+            for (let i = 0; i <= 48; i += 1) {
+                const t = (i / 48) * Math.PI * 2;
+                out.push([cx + Math.cos(t) * rx, cy + Math.sin(t) * ry]);
+            }
+            return out;
+        }
+        if (a.kind === 'rect') {
+            const x1 = Math.min(pts[0][0], pts[1][0]);
+            const x2 = Math.max(pts[0][0], pts[1][0]);
+            const y1 = Math.min(pts[0][1], pts[1][1]);
+            const y2 = Math.max(pts[0][1], pts[1][1]);
+            return [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]];
+        }
+        return pts;
+    }
+
+    function distanceToSegment(p, a, b) {
+        const dx = b[0] - a[0];
+        const dy = b[1] - a[1];
+        const lenSq = dx * dx + dy * dy;
+        if (lenSq === 0) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+        let t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+        return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+    }
+
+    // Text and step badges are solid objects, so anywhere inside them counts. Everything
+    // else is a line, so only the neighbourhood of the stroke does.
+    function touchesAnnotation(a, point) {
+        if (a.kind === 'text') return touchesTextAnnotation(a, point);
+        if (ANCHORED_KINDS.includes(a.kind)) {
+            const b = annotationBounds(a);
+            return point[0] >= b.x - HIT_SLOP && point[0] <= b.x + b.width + HIT_SLOP
+                && point[1] >= b.y - HIT_SLOP && point[1] <= b.y + b.height + HIT_SLOP;
+        }
+        const outline = annotationOutline(a);
+        // Half the stroke width, so a fat marker is grabbable across its whole band.
+        const slop = HIT_SLOP + a.size / 2;
+        for (let i = 0; i < outline.length - 1; i += 1) {
+            if (distanceToSegment(point, outline[i], outline[i + 1]) <= slop) return true;
+        }
+        return outline.length === 1
+            && Math.hypot(point[0] - outline[0][0], point[1] - outline[0][1]) <= slop;
+    }
+
+    // A note is grabbable where its words are, not across the width of the box they wrap
+    // in. annotationBounds reports boxW — a fixed default regardless of how much was
+    // typed — so measuring that instead let a two-character note claim a wide strip of
+    // blank page and swallow drags that started nowhere near anything visible. Measuring
+    // the laid-out line boxes also fixes the reverse: a wrapped note used to be grabbable
+    // only on its first line, because the height was assumed to be a single line.
+    function touchesTextAnnotation(a, point) {
+        const lines = textLineRects(a.id);
+        if (lines) {
+            return lines.some(r => point[0] >= r.x - HIT_SLOP && point[0] <= r.x + r.width + HIT_SLOP
+                && point[1] >= r.y - HIT_SLOP && point[1] <= r.y + r.height + HIT_SLOP);
+        }
+        // Not rendered yet, so fall back to the declared box.
+        const b = annotationBounds(a);
+        const height = Math.max(a.size * 1.35, 16);
+        return point[0] >= b.x - HIT_SLOP && point[0] <= b.x + b.width + HIT_SLOP
+            && point[1] >= b.y - HIT_SLOP && point[1] <= b.y + height + HIT_SLOP;
+    }
+
+    // One rect per line box of the rendered note, in document space.
+    function textLineRects(id) {
+        const el = annotationElement(id);
+        if (!el || !el.firstChild) return null;
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        const rects = Array.from(range.getClientRects());
+        if (!rects.length) return null;
+        return rects.map(r => ({
+            x: r.left + window.scrollX,
+            y: r.top + window.scrollY,
+            width: r.width,
+            height: r.height
+        }));
+    }
+
+    function annotationElement(id) {
+        return Array.from(document.querySelectorAll('.ceb-annotation'))
+            .find(el => el.dataset.cebNoteId === id) || null;
+    }
+
+    // Topmost first: later annotations are painted over earlier ones, so they win.
+    function annotationAt(point) {
+        for (let i = state.annotations.length - 1; i >= 0; i -= 1) {
+            if (touchesAnnotation(state.annotations[i], point)) return state.annotations[i];
+        }
+        return null;
+    }
+
+    // Which resize handle, if any, the pointer is on. Only shapes dragged out from two
+    // corners can be resized; reshaping a freehand scribble or a text box is not a
+    // gesture anyone reaches for.
+    function handleAt(a, point) {
+        if (!a || !TWO_POINT_KINDS.includes(a.kind)) return -1;
+        for (let i = 0; i < 2; i += 1) {
+            const d = Math.hypot(point[0] - a.points[i][0], point[1] - a.points[i][1]);
+            if (d <= HANDLE_RADIUS + HIT_SLOP) return i;
+        }
+        return -1;
+    }
+
+
     //
     // Shapes are dragged out with a live preview; the pen samples the pointer; text is
     // placed with a single click and typed into a contenteditable box straight away, so
@@ -940,6 +1140,7 @@
     let noteStart = null;        // document coords of the gesture's origin
     let notePoints = [];         // pen only
     let noteMinGap = PEN_MIN_GAP; // grows as a stroke gets long, to bound its cost
+    let noteDrag = null;         // in-flight move/resize of an existing annotation
     let textEditor = null;       // live contenteditable box, if any
 
     function isAnnotateTool(kind) {
@@ -948,6 +1149,97 @@
 
     function activeTool() {
         return isAnnotateTool(settings.annotateTool) ? settings.annotateTool : 'arrow';
+    }
+
+    // The marker tracks its own colour: switching from a red arrow to the highlighter
+    // should not hand you a red highlighter, which multiplies down to near black.
+    function noteColor(kind) {
+        return kind === 'marker'
+            ? safeColor(settings.annotateMarkerColor, MARKER_PALETTE[0])
+            : safeColor(settings.annotateColor, ANNOTATION_PALETTE[0]);
+    }
+
+    function noteSize(kind) {
+        if (kind === 'text') return 16;
+        if (kind === 'marker') return MARKER_SIZE;
+        if (kind === 'step') return STEP_RADIUS;
+        return 3;
+    }
+
+    // ---------- Handles ----------
+
+    let noteHandles = null;
+    let hoveredNoteId = null;
+
+    function clearHandles() {
+        if (noteHandles) {
+            noteHandles.remove();
+            noteHandles = null;
+        }
+        hoveredNoteId = null;
+    }
+
+    function drawHandles(a) {
+        if (noteHandles) {
+            noteHandles.remove();
+            noteHandles = null;
+        }
+        if (!a || !TWO_POINT_KINDS.includes(a.kind)) return;
+
+        noteHandles = document.createElement('div');
+        noteHandles.id = 'ceb-note-handles';
+        noteHandles.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;'
+            + 'z-index:2147483645;pointer-events:none;';
+        a.points.slice(0, 2).forEach(p => {
+            const dot = document.createElement('div');
+            dot.className = 'ceb-note-handle';
+            dot.style.cssText = `
+                position: absolute;
+                left: ${p[0] - HANDLE_RADIUS}px;
+                top: ${p[1] - HANDLE_RADIUS}px;
+                width: ${HANDLE_RADIUS * 2}px;
+                height: ${HANDLE_RADIUS * 2}px;
+                box-sizing: border-box;
+                border-radius: 50%;
+                background: #fff;
+                border: 2px solid #2563eb;
+                box-shadow: 0 1px 3px rgba(0,0,0,.4);
+            `;
+            noteHandles.appendChild(dot);
+        });
+        document.body.appendChild(noteHandles);
+    }
+
+    // Cursor and handles are the only hint that a mark can be grabbed, so they have to
+    // track the pointer even when nothing is being dragged.
+    function updateHoverAffordance(point) {
+        if (!annotateOverlay) return;
+        const hovered = annotationAt(point);
+        const id = hovered ? hovered.id : null;
+        if (id !== hoveredNoteId) {
+            hoveredNoteId = id;
+            drawHandles(hovered);
+        }
+        annotateOverlay.style.cursor = !hovered ? 'crosshair'
+            : handleAt(hovered, point) !== -1 ? 'nwse-resize'
+            : 'move';
+    }
+
+    // Repaints one annotation in place. renderState() rebuilds every rule on the page,
+    // which is far too much work to do on each mousemove of a drag.
+    function refreshAnnotation(a) {
+        const existing = annotationElement(a.id);
+        // renderAnnotation appends, so refreshing would bump the mark to the end of the
+        // paint order — dragging one would silently restack it above its neighbours while
+        // state.annotations, which hit testing walks to decide what is on top, kept the
+        // original order. Putting it back keeps what you see and what you grab agreeing.
+        const anchor = existing ? existing.nextSibling : null;
+        if (existing) existing.remove();
+        const el = renderAnnotation(a);
+        if (el && anchor && anchor.parentNode === document.body) {
+            document.body.insertBefore(el, anchor);
+        }
+        return el;
     }
 
     // Pointer position in document space, so a stroke started near the bottom of a long
@@ -980,12 +1272,31 @@
     }
 
     function removeAnnotateOverlay() {
+        cancelNoteDrag();
         if (annotateOverlay) {
             annotateOverlay.remove();
             annotateOverlay = null;
         }
         clearNotePreview();
+        clearHandles();
         noteDrawing = false;
+    }
+
+    // Puts a half-finished drag back where it started and forgets it. Any path that ends a
+    // gesture without reaching endNote lands here — Escape, a mode switch, the toolbar
+    // being torn down — and Escape mid-drag is the universal "cancel this" gesture.
+    // Without the revert the mark stays at its dragged position on screen but the move
+    // never reaches history or storage, so state and history[historyIndex] disagree: the
+    // next undo discards the move *and* eats the action before it, and a persisted mark
+    // snaps back on reload.
+    function cancelNoteDrag() {
+        const drag = noteDrag;
+        noteDrag = null;
+        if (!drag || !drag.moved) return;
+        const note = state.annotations.find(a => a.id === drag.id);
+        if (!note) return;
+        note.points = drag.from.map(p => p.slice());
+        refreshAnnotation(note);
     }
 
     function clearNotePreview() {
@@ -999,10 +1310,11 @@
     // screen mid-drag is exactly what gets committed.
     function drawNotePreview(points) {
         clearNotePreview();
+        const tool = activeTool();
         const draft = {
-            id: 'preview', kind: activeTool(), points,
-            text: '', color: safeColor(settings.annotateColor),
-            size: 3, boxW: 220, persist: false, scope: 'page'
+            id: 'preview', kind: tool, points,
+            text: '', color: noteColor(tool),
+            size: noteSize(tool), boxW: 220, persist: false, scope: 'page'
         };
         const bounds = annotationBounds(draft);
         notePreview = document.createElement('div');
@@ -1017,6 +1329,7 @@
             pointer-events: none;
             opacity: .85;
         `;
+        if (tool === 'marker') notePreview.style.mixBlendMode = 'multiply';
         notePreview.appendChild(buildAnnotationShape(draft, bounds));
         document.body.appendChild(notePreview);
     }
@@ -1029,24 +1342,77 @@
         // can type a character.
         e.preventDefault();
 
+        const point = docPoint(e);
 
-        // Text is placed, not dragged.
+        // Grabbing an existing mark takes priority over starting a new one, so a shape
+        // that landed slightly off can be nudged into place rather than deleted and
+        // redrawn. Only the ink is grabbable, so you can still draw inside a circle.
+        const hovered = annotationAt(point);
+        if (hovered) {
+            const handle = handleAt(hovered, point);
+            noteDrag = {
+                mode: handle === -1 ? 'move' : 'resize',
+                id: hovered.id,
+                index: handle,
+                origin: point,
+                from: hovered.points.map(p => p.slice()),
+                moved: false
+            };
+            clearHandles();
+            return;
+        }
+
+        // Text and step badges are placed, not dragged.
         if (activeTool() === 'text') {
-            createTextAnnotation(docPoint(e));
+            createTextAnnotation(point);
+            return;
+        }
+        if (activeTool() === 'step') {
+            createStepAnnotation(point);
             return;
         }
 
         noteDrawing = true;
-        noteStart = docPoint(e);
+        noteStart = point;
         notePoints = [noteStart];
         noteMinGap = PEN_MIN_GAP;
     }
 
     function updateNote(e) {
-        if (!noteDrawing) return;
         const point = docPoint(e);
 
-        if (activeTool() === 'pen') {
+        if (noteDrag) {
+            const note = state.annotations.find(a => a.id === noteDrag.id);
+            if (!note) {
+                noteDrag = null;
+                return;
+            }
+            const dx = point[0] - noteDrag.origin[0];
+            const dy = point[1] - noteDrag.origin[1];
+            // Distinguishes a drag from a click. Without a threshold, the tremor in a
+            // normal click would register as a one-pixel move and burn a history entry.
+            if (Math.hypot(dx, dy) > DRAG_THRESHOLD) noteDrag.moved = true;
+            // Nothing shifts until the threshold is crossed. Applying the delta first meant
+            // the tremor in an ordinary click nudged the mark by a pixel or two — a move
+            // with no history entry and nothing written to storage behind it.
+            if (!noteDrag.moved) return;
+
+            if (noteDrag.mode === 'move') {
+                note.points = noteDrag.from.map(p => [p[0] + dx, p[1] + dy]);
+            } else {
+                note.points = noteDrag.from.map(p => p.slice());
+                note.points[noteDrag.index] = point;
+            }
+            refreshAnnotation(note);
+            return;
+        }
+
+        if (!noteDrawing) {
+            updateHoverAffordance(point);
+            return;
+        }
+
+        if (FREEHAND_KINDS.includes(activeTool())) {
             const last = notePoints[notePoints.length - 1];
             // Skip near-duplicate samples: they add nothing visually but bloat what gets
             // stored and slow the smoothing pass down.
@@ -1069,12 +1435,36 @@
     }
 
     function endNote(e) {
+        if (noteDrag) {
+            const drag = noteDrag;
+            noteDrag = null;
+            const note = state.annotations.find(a => a.id === drag.id);
+            if (!note) return;
+
+            if (drag.moved) {
+                commit(drag.mode === 'move' ? 'Annotation moved' : 'Annotation resized');
+                return;
+            }
+            // A stationary click on a resize handle does nothing. The cursor over a handle
+            // promises a resize, and the handles sit right on the shape, so treating that
+            // click as "remove" deleted the mark the user was reaching out to adjust.
+            if (drag.mode !== 'move') return;
+            if (note.kind === 'text') {
+                // Deleting someone's typed note on a stray click would be hostile; the
+                // worst a misclick can do here is open the editor.
+                openTextEditor(note.id);
+            } else {
+                removeAnnotation(note.id);
+            }
+            return;
+        }
+
         if (!noteDrawing) return;
         noteDrawing = false;
         clearNotePreview();
 
         const tool = activeTool();
-        const points = tool === 'pen' ? notePoints.slice() : [noteStart, docPoint(e)];
+        const points = FREEHAND_KINDS.includes(tool) ? notePoints.slice() : [noteStart, docPoint(e)];
 
         // Ignore a stray click that was not really a drag.
         const spanX = Math.max(...points.map(p => p[0])) - Math.min(...points.map(p => p[0]));
@@ -1084,7 +1474,8 @@
         pushAnnotation({ kind: tool, points });
         commit(tool === 'arrow' ? 'Arrow added'
             : tool === 'ellipse' ? 'Circle added'
-            : tool === 'rect' ? 'Box added' : 'Drawing added');
+            : tool === 'rect' ? 'Box added'
+            : tool === 'marker' ? 'Highlight added' : 'Drawing added');
     }
 
     function pushAnnotation(partial) {
@@ -1092,13 +1483,18 @@
             kind: partial.kind,
             points: partial.points,
             text: partial.text || '',
-            color: settings.annotateColor,
-            size: partial.kind === 'text' ? 16 : 3,
+            color: noteColor(partial.kind),
+            size: noteSize(partial.kind),
             boxW: 220,
             persist: settings.annotateKeep === true
         });
         if (note) state.annotations.push(note);
         return note;
+    }
+
+    function createStepAnnotation(point) {
+        if (!pushAnnotation({ kind: 'step', points: [point] })) return;
+        commit('Step added');
     }
 
     // ---------- Text annotations ----------
@@ -1216,7 +1612,7 @@
     // wait for a paint, then capture.
     const CAPTURE_HIDE = [
         '#ceb-toolbar', '#ceb-mode-badge', '#ceb-toast',
-        '#ceb-draw-overlay', '#ceb-annotate-overlay', '#ceb-note-preview',
+        '#ceb-draw-overlay', '#ceb-annotate-overlay', '#ceb-note-preview', '#ceb-note-handles',
         '#ceb-text-editor', '#ceb-picker-outline', '#ceb-picker-hud', '#ceb-panel'
     ];
 
@@ -1560,7 +1956,7 @@
         try {
             const stored = await chrome.storage.local.get([
                 'persistEnabled', 'uiMode', 'defaultScope', 'blurStrength', 'drawKind',
-                'annotateTool', 'annotateColor', 'annotateKeep',
+                'annotateTool', 'annotateColor', 'annotateMarkerColor', 'annotateKeep',
                 storageKeyForUrl(window.location.href),
                 siteKeyForUrl(window.location.href)
             ]);
@@ -1572,6 +1968,7 @@
             settings.annotateTool = ANNOTATION_KINDS.includes(stored.annotateTool)
                 ? stored.annotateTool : 'arrow';
             settings.annotateColor = safeColor(stored.annotateColor);
+            settings.annotateMarkerColor = safeColor(stored.annotateMarkerColor, MARKER_PALETTE[0]);
             settings.annotateKeep = stored.annotateKeep === true;
 
             if (stored.persistEnabled === false) return;
@@ -1674,8 +2071,13 @@
     }
 
     function commit(label) {
+        // A text note exists in state from the moment it is placed, before a character is
+        // typed — finishTextEditing is what decides whether it becomes real or is dropped.
+        // Anything that commits while an editor is still open would otherwise bake that
+        // empty, invisible note into the snapshot, so undo would resurrect it and state
+        // and history would disagree about what is on the page.
         history = history.slice(0, historyIndex + 1);
-        history.push(cloneState(state));
+        history.push(cloneState(withoutEmptyNotes(state)));
         if (history.length > MAX_HISTORY) history.shift();
         historyIndex = history.length - 1;
 
@@ -1683,6 +2085,10 @@
         saveChanges();
         if (label) showToast(label, true);
         updateToolbarState();
+    }
+
+    function withoutEmptyNotes(s) {
+        return { ...s, annotations: (s.annotations || []).filter(a => a.kind !== 'text' || a.text !== '') };
     }
 
     function canUndo() { return historyIndex > 0; }
@@ -2242,7 +2648,7 @@
                             <path d="M14 4h6v6"/>
                         </svg>
                         <span class="ceb-tb-label">Annotate</span>
-                        <span class="ceb-tb-hint">Arrows, circles and notes</span>
+                        <span class="ceb-tb-hint">Arrows, circles, highlighter and notes</span>
                     </button>
                 </div>
 
@@ -2259,6 +2665,13 @@
                                 <ellipse cx="12" cy="12" rx="9" ry="7"/>
                             </svg>
                         </button>
+                        <button class="ceb-note-tool" data-note-tool="marker" title="Highlighter">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 14.5 16.5 4l3.5 2.5L12.5 17z"/>
+                                <path d="M9 14.5 12.5 17"/>
+                                <path d="M4 21h16" stroke-width="3" stroke-linecap="round"/>
+                            </svg>
+                        </button>
                         <button class="ceb-note-tool" data-note-tool="text" title="Note text">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M5 7V5h14v2"/><path d="M12 5v14"/><path d="M9 19h6"/>
@@ -2272,6 +2685,12 @@
                         <button class="ceb-note-tool ceb-pro-only" data-note-tool="pen" title="Freehand">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M3 18c4-10 8 6 12-2 2-4 4-2 6-1"/>
+                            </svg>
+                        </button>
+                        <button class="ceb-note-tool ceb-pro-only" data-note-tool="step" title="Numbered step">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="8.5"/>
+                                <path d="M10.5 9.5 12.5 8v8" stroke-linecap="round" stroke-linejoin="round"/>
                             </svg>
                         </button>
                     </div>
@@ -2836,23 +3255,7 @@
                 updateToolbarState();
             });
         });
-
-        const colorRow = toolbar.querySelector('#ceb-note-colors');
-        if (colorRow) {
-            ANNOTATION_PALETTE.forEach(hex => {
-                const swatch = document.createElement('button');
-                swatch.className = 'ceb-note-swatch';
-                swatch.dataset.noteColor = hex;
-                swatch.style.background = hex;
-                swatch.title = hex;
-                on(swatch, 'click', () => {
-                    settings.annotateColor = safeColor(hex);
-                    chrome.storage.local.set({ annotateColor: settings.annotateColor });
-                    updateToolbarState();
-                });
-                colorRow.appendChild(swatch);
-            });
-        }
+        renderNoteSwatches();
 
         // One page-level decision rather than a flag per mark: the user is deciding
         // whether this page's annotations are a keepsake or scaffolding for one screenshot.
@@ -2921,7 +3324,7 @@
         }
         // Same for a Pro-only annotation tool: its button is hidden in Simple, so the
         // active tool would be one the user can neither see nor change.
-        if (settings.uiMode === 'simple' && ['rect', 'pen'].includes(settings.annotateTool)) {
+        if (settings.uiMode === 'simple' && PRO_ANNOTATE_TOOLS.includes(settings.annotateTool)) {
             settings.annotateTool = 'arrow';
             chrome.storage.local.set({ annotateTool: 'arrow' });
         }
@@ -2952,7 +3355,7 @@
             id: a.id, kind: 'annotation', scope: 'page', type: 'annotation',
             label: a.kind === 'text'
                 ? `note: "${a.text.slice(0, 30)}${a.text.length > 30 ? '…' : ''}"`
-                : `${a.kind}${a.persist ? '' : ' (session only)'}`,
+                : `${ANNOTATION_LABELS[a.kind] || a.kind}${a.persist ? '' : ' (session only)'}`,
             title: a.persist ? 'Annotation — kept after reload' : 'Annotation — not saved'
         }));
         return entries;
@@ -3204,8 +3607,10 @@
         toolbar.querySelectorAll('.ceb-note-tool').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.noteTool === settings.annotateTool);
         });
+        renderNoteSwatches();
+        const activeNoteColor = noteColor(activeTool());
         toolbar.querySelectorAll('.ceb-note-swatch').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.noteColor === settings.annotateColor);
+            btn.classList.toggle('active', btn.dataset.noteColor === activeNoteColor);
         });
         const keepBtn = toolbar.querySelector('#ceb-btn-note-keep');
         if (keepBtn) {
@@ -3228,7 +3633,8 @@
                 'blur': 'Click to blur • ↑↓ to select parent',
                 'hide': 'Click to hide • ↑↓ to select parent',
                 'redact': 'Click for a solid block • cannot be undone by viewers',
-                'draw': settings.drawKind === 'redact' ? 'Drag to draw a solid block' : 'Drag to draw a blur area'
+                'draw': settings.drawKind === 'redact' ? 'Drag to draw a solid block' : 'Drag to draw a blur area',
+                'annotate': 'Drag to draw • drag a mark to move it • click it to remove'
             };
             if (currentModeId !== 'idle' && hints[currentModeId]) {
                 indicator.textContent = hints[currentModeId];
@@ -3239,6 +3645,39 @@
         }
     }
     
+    // The swatch row belongs to the active tool: the marker's pastels and the line-work
+    // palette are not interchangeable, so the row is rebuilt whenever the tool changes.
+    function renderNoteSwatches() {
+        if (!toolbar) return;
+        const row = toolbar.querySelector('#ceb-note-colors');
+        if (!row) return;
+
+        const tool = activeTool();
+        const palette = paletteFor(tool);
+        if (row.dataset.palette === palette.join(',')) return;
+        row.dataset.palette = palette.join(',');
+        row.textContent = '';
+
+        palette.forEach(hex => {
+            const swatch = document.createElement('button');
+            swatch.className = 'ceb-note-swatch';
+            swatch.dataset.noteColor = hex;
+            swatch.style.background = hex;
+            swatch.title = hex;
+            swatch.addEventListener('click', () => {
+                if (activeTool() === 'marker') {
+                    settings.annotateMarkerColor = safeColor(hex, MARKER_PALETTE[0]);
+                    chrome.storage.local.set({ annotateMarkerColor: settings.annotateMarkerColor });
+                } else {
+                    settings.annotateColor = safeColor(hex);
+                    chrome.storage.local.set({ annotateColor: settings.annotateColor });
+                }
+                updateToolbarState();
+            });
+            row.appendChild(swatch);
+        });
+    }
+
     function updateToolbarStats() {
         if (!toolbar) return;
         const stats = toolbar.querySelector('#ceb-stats');

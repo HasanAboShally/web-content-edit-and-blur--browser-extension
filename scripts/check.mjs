@@ -145,6 +145,23 @@ check('every background message goes through the guarded helper', () => {
   return 'all call sites use sendToBackground()';
 });
 
+check('the Pro-only annotate tools match the toolbar markup', () => {
+  const src = fs.readFileSync(path.join(root, 'page-code.js'), 'utf8');
+  // Two independent lists decide which tools are Pro: the constant that resets the
+  // active tool when you drop back to Simple, and the ceb-pro-only class in the
+  // toolbar. If they drift, a tool is either visible in Simple but reset out from
+  // under the user on the next mode switch, or hidden with no way to reach it.
+  const declared = (src.match(/const PRO_ANNOTATE_TOOLS = \[([^\]]*)\]/) || [])[1];
+  if (declared === undefined) throw new Error('PRO_ANNOTATE_TOOLS missing');
+  const fromConst = declared.match(/'([^']+)'/g).map(s => s.slice(1, -1)).sort();
+  const fromMarkup = [...src.matchAll(/class="ceb-note-tool ceb-pro-only" data-note-tool="([^"]+)"/g)]
+    .map(m => m[1]).sort();
+  if (fromConst.join(',') !== fromMarkup.join(',')) {
+    throw new Error(`PRO_ANNOTATE_TOOLS [${fromConst}] != ceb-pro-only buttons [${fromMarkup}]`);
+  }
+  return `${fromConst.length} Pro tools in both`;
+});
+
 ok.forEach(l => console.log(`PASS  ${l}`));
 problems.forEach(l => console.error(`FAIL  ${l}`));
 console.log(`\n${ok.length}/${ok.length + problems.length} checks passed`);

@@ -74,7 +74,7 @@ jobs:
           unzip -p "dist/content-edit-blur-chrome-${VERSION}.zip" manifest.json | node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(0, 'utf8')); if (m.background?.service_worker !== 'background.js' || m.background.scripts) process.exit(1);"
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: v${{ steps.version.outputs.version }}
           tag_name: v${{ steps.version.outputs.version }}

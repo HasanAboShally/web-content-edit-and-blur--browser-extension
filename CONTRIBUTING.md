@@ -108,6 +108,11 @@ cp -R images docs/images        # gitignored
 python3 -m http.server -d docs 8000
 ```
 
+Fonts in `docs/fonts/` are committed on purpose. They are the latin subsets of Instrument
+Serif, Instrument Sans and JetBrains Mono (all SIL OFL), ~118 KB total. Linking a font CDN
+instead would be smaller to store and worse to ship: the page makes a privacy claim, and it
+should be able to make it without any third-party request. Keep it that way.
+
 ## Reporting bugs
 
 Open an [issue](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/issues)

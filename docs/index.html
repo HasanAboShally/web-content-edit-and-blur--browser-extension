@@ -1,673 +1,974 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Content Edit & Blur — Edit, Blur, Redact & Annotate Any Webpage</title>
-    <meta name="description" content="Browser extension for editing, blurring, redacting and annotating any webpage. Perfect for mockups, screenshots, screen shares and protecting sensitive data. Open source, works offline.">
-    <meta name="keywords" content="browser extension, blur, redact, annotate, edit, hide, mockup, screenshot, privacy, Chrome, Firefox, Edge">
-    <link rel="icon" type="image/png" href="images/app-icon-128.png">
-    <link rel="canonical" href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
-    <meta name="theme-color" content="#1a73e8">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content Edit &amp; Blur — Edit, blur, redact and annotate any webpage</title>
+<meta name="description" content="A browser extension to edit, blur, redact and annotate any webpage. For mockups, screenshots and screen shares. Works entirely offline — no data collection.">
+<link rel="icon" type="image/png" href="images/app-icon-128.png">
+<link rel="canonical" href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
+<meta name="theme-color" content="#0a0a0b">
 
-    <!-- Open Graph -->
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Content Edit & Blur — Browser Extension">
-    <meta property="og:description" content="Edit, blur, redact and annotate any webpage. Open source, works entirely offline.">
-    <meta property="og:url" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
-    <meta property="og:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png">
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Content Edit & Blur — Browser Extension">
-    <meta name="twitter:description" content="Edit, blur, redact and annotate any webpage. Open source, works entirely offline.">
-    <meta name="twitter:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png">
-    
-    <style>
-        :root {
-            --accent: #1a73e8;
-            --accent-blur: #ea8600;
-            --accent-hide: #d93025;
-            --accent-draw: #8e24aa;
-            --text: #202124;
-            --text-secondary: #5f6368;
-            --bg: #ffffff;
-            --bg-secondary: #f8f9fa;
-            --border: #e0e0e0;
-            --gradient: linear-gradient(135deg, #1a73e8, #8e24aa);
-        }
+<meta property="og:type" content="website">
+<meta property="og:title" content="Content Edit & Blur — Take the screenshot. Leave the secrets.">
+<meta property="og:description" content="Edit, blur, redact and annotate any webpage. Works entirely offline.">
+<meta property="og:url" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
+<meta property="og:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Content Edit & Blur">
+<meta name="twitter:description" content="Edit, blur, redact and annotate any webpage. Works entirely offline.">
+<meta name="twitter:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png">
 
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --text: #e8eaed;
-                --text-secondary: #9aa0a6;
-                --bg: #202124;
-                --bg-secondary: #292a2d;
-                --border: #3c4043;
-            }
-        }
+<!-- Fonts are self-hosted. A tool that promises no data collection should not
+     phone home to a font CDN just to render its own landing page. -->
+<style>
+@font-face{font-family:'Instrument Serif';src:url(fonts/instrument-serif-400.woff2) format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Instrument Serif';src:url(fonts/instrument-serif-400i.woff2) format('woff2');font-weight:400;font-style:italic;font-display:swap}
+@font-face{font-family:'Instrument Sans';src:url(fonts/instrument-sans-400.woff2) format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Instrument Sans';src:url(fonts/instrument-sans-500.woff2) format('woff2');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Instrument Sans';src:url(fonts/instrument-sans-600.woff2) format('woff2');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url(fonts/jetbrains-mono-400.woff2) format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url(fonts/jetbrains-mono-500.woff2) format('woff2');font-weight:500;font-style:normal;font-display:swap}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-            color: var(--text);
-            background: var(--bg);
-            line-height: 1.6;
-        }
+:root{
+  --ink:#0a0a0b;
+  --ink-2:#101114;
+  --ink-3:#16171b;
+  --line:#26272c;
+  --line-2:#34353b;
+  --paper:#ece9e2;
+  --muted:#8b8b84;
+  --dim:#5d5d58;
+  --accent:#ff5c16;
+  --accent-2:#ffb37a;
+  --mark:#ffe066;
 
-        .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  --serif:'Instrument Serif',Georgia,serif;
+  --sans:'Instrument Sans',-apple-system,BlinkMacSystemFont,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
 
-        /* Hero */
-        .hero {
-            background: var(--gradient);
-            color: white;
-            padding: 100px 0 80px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-            opacity: 0.5;
-        }
+  --pad:clamp(20px,5vw,64px);
+  --maxw:1180px;
+}
 
-        .hero-content { position: relative; z-index: 1; }
-        
-        .logo {
-            display: block;
-            width: 80px; height: 80px;
-            margin: 0 auto 24px;
-            border-radius: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
-        }
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--sans);
+  font-size:17px;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+::selection{background:var(--accent);color:#fff}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
 
-        .badge {
-            display: inline-block;
-            background: rgba(255,255,255,0.2);
-            padding: 6px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 16px;
-            backdrop-filter: blur(10px);
-        }
+/* ── Texture ─────────────────────────────────────────────── */
+.grain{
+  position:fixed;inset:0;z-index:100;pointer-events:none;opacity:.035;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 
-        .hero h1 {
-            font-size: 3rem;
-            font-weight: 700;
-            margin-bottom: 16px;
-            letter-spacing: -0.5px;
-        }
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad)}
 
-        .hero p {
-            font-size: 1.25rem;
-            opacity: 0.9;
-            max-width: 550px;
-            margin: 0 auto 32px;
-        }
+.label{
+  font-family:var(--mono);font-size:11px;font-weight:500;
+  letter-spacing:.18em;text-transform:uppercase;color:var(--dim);
+}
 
-        /* Download Buttons */
-        .download-buttons {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
+/* ── Nav ─────────────────────────────────────────────────── */
+nav{
+  position:sticky;top:0;z-index:50;
+  background:rgba(10,10,11,.72);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid transparent;
+  transition:border-color .3s;
+}
+nav.stuck{border-bottom-color:var(--line)}
+.nav-in{
+  max-width:var(--maxw);margin:0 auto;padding:14px var(--pad);
+  display:flex;align-items:center;gap:14px;
+}
+.nav-mark{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:600;letter-spacing:-.01em}
+.nav-mark img{width:26px;height:26px;border-radius:7px}
+.nav-links{margin-left:auto;display:flex;align-items:center;gap:28px}
+.nav-links a{
+  text-decoration:none;color:var(--muted);font-size:14.5px;
+  transition:color .2s;
+}
+.nav-links a:hover{color:var(--paper)}
+@media(max-width:720px){.nav-links a:not(.nav-cta){display:none}}
+.nav-cta{
+  color:var(--ink)!important;background:var(--paper);
+  padding:8px 16px;border-radius:999px;font-weight:600;font-size:14px;
+  transition:transform .2s,background .2s;
+}
+.nav-cta:hover{background:#fff;transform:translateY(-1px)}
 
-        .download-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 14px 24px;
-            background: white;
-            color: #333;
-            text-decoration: none;
-            border-radius: 12px;
-            font-weight: 600;
-            font-size: 14px;
-            transition: transform 0.2s, box-shadow 0.2s;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-        }
+/* ── Hero ────────────────────────────────────────────────── */
+.hero{position:relative;padding:clamp(56px,9vw,110px) 0 0}
+.hero::before{
+  content:'';position:absolute;top:-25%;left:50%;transform:translateX(-50%);
+  width:min(900px,100%);height:620px;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(255,92,22,.13),transparent 66%);
+  filter:blur(24px);
+}
+.hero-in{position:relative;text-align:center}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:10px;
+  border:1px solid var(--line);border-radius:999px;
+  padding:6px 15px 6px 9px;margin-bottom:30px;
+  font-family:var(--mono);font-size:11px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);
+  background:var(--ink-2);
+}
+.eyebrow b{
+  color:var(--accent);font-weight:500;background:rgba(255,92,22,.12);
+  padding:2px 7px;border-radius:999px;letter-spacing:.1em;
+}
 
-        .download-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
-        }
+h1{
+  font-family:var(--serif);font-weight:400;
+  font-size:clamp(46px,8.4vw,104px);
+  line-height:.98;letter-spacing:-.022em;
+  margin-bottom:26px;
+}
+h1 .l2{display:block;font-style:italic;color:var(--muted)}
 
-        .download-btn svg { width: 20px; height: 20px; }
+/* The redaction bar wipes across "secrets" — the product, performed.
+   Pull it back on hover so the word stays discoverable. */
+.redacted{position:relative;display:inline-block;color:var(--paper);cursor:pointer}
+.redacted::after{
+  content:'';position:absolute;left:-.05em;right:-.05em;top:.08em;bottom:.02em;
+  background:var(--paper);border-radius:2px;
+  transform-origin:left center;transform:scaleX(0);
+  animation:wipe .55s cubic-bezier(.7,0,.3,1) 1.25s forwards;
+}
+.redacted:hover::after{transform:scaleX(0)!important;transition:transform .45s cubic-bezier(.7,0,.3,1);transform-origin:right center}
+@keyframes wipe{to{transform:scaleX(1)}}
 
-        /* Section */
-        section { padding: 80px 0; }
-        section:nth-child(even) { background: var(--bg-secondary); }
-        
-        .section-title {
-            text-align: center;
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 48px;
-            letter-spacing: -0.3px;
-        }
+.sub{
+  max-width:588px;margin:0 auto 34px;color:var(--muted);
+  font-size:clamp(16px,2vw,19px);line-height:1.62;
+}
+.sub em{color:var(--paper);font-style:normal}
 
-        /* Feature Cards */
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 24px;
-        }
+.cta-row{display:flex;justify-content:center;gap:11px;flex-wrap:wrap;margin-bottom:16px}
+.btn{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:13px 22px;border-radius:12px;text-decoration:none;
+  font-weight:500;font-size:15px;border:1px solid var(--line);
+  background:var(--ink-2);transition:border-color .22s,transform .22s,background .22s;
+}
+.btn:hover{border-color:var(--line-2);background:var(--ink-3);transform:translateY(-2px)}
+.btn svg{width:17px;height:17px;flex:none}
+.btn-primary{
+  background:var(--paper);color:var(--ink);border-color:var(--paper);font-weight:600;
+}
+.btn-primary:hover{background:#fff;border-color:#fff}
+.hero-note{font-family:var(--mono);font-size:11.5px;color:var(--dim);letter-spacing:.06em}
 
-        .feature-card {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 32px;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+/* Load choreography */
+.rise{opacity:0;transform:translateY(16px);animation:rise .85s cubic-bezier(.16,1,.3,1) forwards}
+@keyframes rise{to{opacity:1;transform:none}}
+.d1{animation-delay:.05s}.d2{animation-delay:.16s}.d3{animation-delay:.27s}
+.d4{animation-delay:.38s}.d5{animation-delay:.49s}.d6{animation-delay:.6s}
 
-        .feature-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0,0,0,0.08);
-        }
+/* ── Demo ────────────────────────────────────────────────── */
+.demo-sec{padding:clamp(38px,6vw,64px) 0 clamp(60px,9vw,110px)}
+.demo-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:20px;margin-bottom:16px;flex-wrap:wrap;
+}
+.demo-head p{color:var(--muted);font-size:14.5px;max-width:460px}
+.demo-head p b{color:var(--paper);font-weight:500}
 
-        .feature-icon {
-            width: 48px; height: 48px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 16px;
-        }
-        
-        .feature-icon svg { width: 24px; height: 24px; stroke: white; }
-        .feature-icon.edit { background: var(--accent); }
-        .feature-icon.blur { background: var(--accent-blur); }
-        .feature-icon.hide { background: var(--accent-hide); }
-        .feature-icon.draw { background: var(--accent-draw); }
-        .feature-icon.redact { background: #111827; }
-        .feature-icon.site { background: #0277bd; }
-        .feature-icon.persist { background: #00897b; }
-        .feature-icon.screenshot { background: #5c6bc0; }
-        .feature-icon.annotate { background: #e11d48; }
+.frame{
+  border:1px solid var(--line);border-radius:16px;overflow:hidden;
+  background:var(--ink-2);
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.9),0 0 0 1px rgba(255,255,255,.03) inset;
+}
 
-        .feature-card h3 {
-            font-size: 1.1rem;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
+/* Toolbar — mirrors the real extension so the demo teaches the real UI */
+.bar{
+  display:flex;align-items:center;gap:6px;padding:11px 13px;
+  border-bottom:1px solid var(--line);background:var(--ink-3);
+  flex-wrap:wrap;
+}
+.tool{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 13px;border-radius:9px;font-size:13.5px;font-weight:500;
+  border:1px solid transparent;color:var(--muted);
+  transition:background .18s,color .18s,border-color .18s;
+}
+.tool svg{width:15px;height:15px}
+.tool:hover{background:rgba(255,255,255,.05);color:var(--paper)}
+.tool[aria-pressed="true"]{
+  background:var(--accent);color:#fff;border-color:var(--accent);
+  box-shadow:0 4px 16px -4px rgba(255,92,22,.6);
+}
+.bar-sp{flex:1;min-width:8px}
+.tool.ghost{color:var(--dim);font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;padding:8px 11px}
+.tool.ghost:hover{color:var(--paper)}
+.tool.ghost:disabled{opacity:.32;cursor:not-allowed}
+.tool.ghost:disabled:hover{background:none;color:var(--dim)}
 
-        .feature-card p { color: var(--text-secondary); font-size: 14px; }
+/* Fake browser chrome */
+.chrome{
+  display:flex;align-items:center;gap:9px;padding:10px 14px;
+  background:#0d0e10;border-bottom:1px solid var(--line);
+}
+.dots{display:flex;gap:6px}
+.dots i{width:10px;height:10px;border-radius:50%;background:var(--line-2)}
+.url{
+  flex:1;background:#08090a;border:1px solid var(--line);border-radius:7px;
+  padding:5px 12px;font-family:var(--mono);font-size:11.5px;color:var(--dim);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.url b{color:var(--muted);font-weight:400}
 
-        /* How It Works */
-        .steps {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 48px;
-            max-width: 800px;
-            margin: 0 auto;
-        }
+/* Hint strip */
+.hint{
+  display:flex;align-items:center;gap:9px;padding:9px 15px;
+  background:rgba(255,92,22,.07);border-bottom:1px solid rgba(255,92,22,.16);
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;color:var(--accent-2);
+  min-height:37px;
+}
+.hint .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex:none;animation:pulse 1.9s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
 
-        @media (max-width: 768px) {
-            .steps { grid-template-columns: 1fr; gap: 32px; }
-        }
+/* The mock page — luminous white against the dark canvas */
+.stage{background:#fff;color:#16181d;padding:26px;position:relative;overflow:hidden}
+.stage *{font-family:var(--sans)}
+.demo.armed .stage{cursor:crosshair}
+.demo.armed .stage [data-t]{cursor:crosshair}
+.demo.armed .stage [data-t]:hover{
+  outline:2px solid var(--accent);outline-offset:3px;border-radius:3px;
+  background:rgba(255,92,22,.06);
+}
+.demo.armed .stage a{pointer-events:none}
 
-        .step { text-align: center; }
-        
-        .step-number {
-            width: 56px; height: 56px;
-            background: var(--gradient);
-            color: white;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin: 0 auto 16px;
-        }
+.m-top{display:flex;align-items:center;gap:12px;padding-bottom:18px;border-bottom:1px solid #eceef1;margin-bottom:20px}
+.m-logo{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#2b6cf6,#1a44b8);flex:none}
+.m-brand{font-weight:600;font-size:15px;letter-spacing:-.01em}
+.m-nav{margin-left:auto;display:flex;gap:20px;color:#7b8290;font-size:13px}
+@media(max-width:640px){.m-nav{display:none}}
+.m-user{display:flex;align-items:center;gap:9px;padding-left:16px}
+.m-av{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#ffb37a,#ff5c16);flex:none}
+.m-uname{font-size:13px;font-weight:500}
 
-        .step h3 { font-size: 1rem; margin-bottom: 8px; }
-        .step p { color: var(--text-secondary); font-size: 14px; }
+.m-h{font-size:21px;font-weight:600;letter-spacing:-.02em;margin-bottom:3px}
+.m-sub{color:#7b8290;font-size:13.5px;margin-bottom:20px}
 
-        /* Testimonials */
-        .testimonials-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-        }
+.m-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px}
+.m-card{border:1px solid #eceef1;border-radius:11px;padding:15px;background:#fcfcfd}
+.m-k{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:#9aa1ad;margin-bottom:7px}
+.m-v{font-size:15px;font-weight:500;letter-spacing:-.01em}
+.m-v.big{font-size:25px;font-weight:600;letter-spacing:-.03em}
+.m-v.mono{font-family:var(--mono)!important;font-size:14px}
+.m-delta{font-size:11.5px;color:#0e9f6e;font-weight:500;margin-top:3px}
 
-        .testimonial {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-        }
+.m-tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.m-tbl th{
+  text-align:left;font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:#9aa1ad;font-weight:400;
+  padding:0 10px 9px;border-bottom:1px solid #eceef1;
+}
+.m-tbl td{padding:11px 10px;border-bottom:1px solid #f3f5f7}
+.m-tbl tr:last-child td{border-bottom:none}
+.m-pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:500;background:#e8f7f0;color:#0e7a53}
+.m-pill.w{background:#fef3e2;color:#b45309}
+@media(max-width:640px){
+  .m-hide-sm{display:none}
+  .stage{padding:18px}
+  .m-tbl{font-size:12px}
+  .m-tbl th{padding:0 6px 8px}
+  .m-tbl td{padding:9px 6px}
+  .m-tbl td[data-t]{max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .m-tbl .m-v.mono{font-size:11px!important}
+}
 
-        .stars { color: #fbbf24; margin-bottom: 12px; font-size: 14px; }
-        
-        .testimonial-text {
-            font-size: 14px;
-            line-height: 1.7;
-            margin-bottom: 16px;
-            color: var(--text);
-        }
+/* Applied effects */
+[data-fx="blur"]{filter:blur(7px);transition:filter .3s}
+[data-fx="hide"]{opacity:0;pointer-events:none;transition:opacity .25s}
+[data-fx="redact"]{position:relative;color:transparent!important;transition:color .15s}
+[data-fx="redact"]::after{
+  content:'';position:absolute;left:-4px;right:-4px;top:-1px;bottom:-1px;
+  background:#0a0a0b;border-radius:2px;
+  transform:scaleX(0);transform-origin:left center;
+  animation:wipe .32s cubic-bezier(.7,0,.3,1) forwards;
+}
+[data-fx="mark"]{
+  background:var(--mark);mix-blend-mode:multiply;
+  box-shadow:0 0 0 3px var(--mark);border-radius:2px;
+}
+[data-fx="edit"]{
+  outline:2px dashed rgba(255,92,22,.55);outline-offset:3px;border-radius:3px;
+  background:rgba(255,92,22,.05);
+}
 
-        .testimonial-author {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+.demo-foot{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:11px 15px;border-top:1px solid var(--line);background:var(--ink-3);
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--dim);
+  flex-wrap:wrap;
+}
+.demo-foot a{color:var(--muted);text-decoration:none;border-bottom:1px solid var(--line-2);padding-bottom:1px}
+.demo-foot a:hover{color:var(--accent)}
 
-        .avatar {
-            width: 36px; height: 36px;
-            background: var(--gradient);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-        }
+/* ── Section furniture ───────────────────────────────────── */
+section{position:relative;scroll-margin-top:80px}
+.sec{padding:clamp(66px,10vw,132px) 0}
+.sec-head{max-width:660px;margin-bottom:clamp(34px,5vw,58px)}
+.sec-head.mid{margin-left:auto;margin-right:auto;text-align:center}
+h2{
+  font-family:var(--serif);font-weight:400;
+  font-size:clamp(32px,5.2vw,58px);line-height:1.03;
+  letter-spacing:-.022em;margin:14px 0 16px;
+}
+h2 em{font-style:italic;color:var(--muted)}
+.sec-head p{color:var(--muted);font-size:clamp(15px,1.8vw,17.5px);line-height:1.62}
 
-        .author-name { font-weight: 600; font-size: 14px; }
-        .author-source { font-size: 12px; color: var(--text-secondary); }
+.rule{height:1px;background:linear-gradient(90deg,var(--line),transparent)}
 
-        /* Shortcuts */
-        .shortcuts-table {
-            max-width: 500px;
-            margin: 0 auto;
-            border-collapse: collapse;
-            width: 100%;
-        }
+/* Scroll reveal */
+.rv{opacity:0;transform:translateY(24px);transition:opacity .8s cubic-bezier(.16,1,.3,1),transform .8s cubic-bezier(.16,1,.3,1)}
+.rv.in{opacity:1;transform:none}
+.rv.s1{transition-delay:.07s}.rv.s2{transition-delay:.14s}.rv.s3{transition-delay:.21s}
+.rv.s4{transition-delay:.28s}.rv.s5{transition-delay:.35s}
 
-        .shortcuts-table th,
-        .shortcuts-table td {
-            padding: 14px 16px;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-            font-size: 14px;
-        }
+/* ── Blur vs redact ──────────────────────────────────────── */
+.proof{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:22px}
+@media(max-width:700px){.proof{grid-template-columns:1fr}}
+.pcard{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--ink-2)}
+.pcard-h{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 15px;border-bottom:1px solid var(--line);
+}
+.pcard-h .label{color:var(--muted)}
+.pcard-b{padding:26px 20px;background:#fff;color:#16181d;text-align:center}
+.pcard-k{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:#9aa1ad;margin-bottom:8px}
+.pcard-v{font-family:var(--mono)!important;font-size:clamp(16px,3.2vw,23px);font-weight:500;letter-spacing:.01em}
+.pv-blur{filter:blur(9px);transition:filter 1.5s cubic-bezier(.4,0,.2,1)}
+.proof.revealed .pv-blur{filter:blur(0)}
+.pv-redact{position:relative;color:transparent!important}
+.pv-redact::after{content:'';position:absolute;left:-8px;right:-8px;top:-2px;bottom:-2px;background:#0a0a0b;border-radius:3px}
+.pcard-note{
+  padding:13px 15px;border-top:1px solid var(--line);
+  font-size:13.5px;color:var(--muted);min-height:52px;
+}
+.pcard-note b{color:var(--paper);font-weight:500}
+.pcard.danger{border-color:rgba(255,92,22,.4)}
+.proof-act{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.btn-sm{
+  padding:10px 18px;border:1px solid var(--line-2);border-radius:10px;
+  font-size:13.5px;font-weight:500;transition:background .2s,border-color .2s;
+}
+.btn-sm:hover{background:var(--ink-3);border-color:var(--muted)}
+.proof-cap{font-size:13px;color:var(--muted);max-width:520px}
 
-        .shortcuts-table th {
-            font-weight: 600;
-            color: var(--text-secondary);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+/* ── Tools grid ──────────────────────────────────────────── */
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.tcard{background:var(--ink);padding:clamp(24px,3.2vw,34px);transition:background .3s;position:relative}
+.tcard:hover{background:var(--ink-2)}
+.tcard-i{
+  width:38px;height:38px;border-radius:10px;display:grid;place-items:center;
+  border:1px solid var(--line);margin-bottom:18px;color:var(--accent);
+  background:var(--ink-2);transition:transform .3s cubic-bezier(.16,1,.3,1),border-color .3s;
+}
+.tcard:hover .tcard-i{transform:translateY(-3px) rotate(-4deg);border-color:var(--accent)}
+.tcard-i svg{width:18px;height:18px}
+.tcard h3{font-size:17px;font-weight:600;letter-spacing:-.015em;margin-bottom:7px;display:flex;align-items:center;gap:8px}
+.tcard p{color:var(--muted);font-size:14.5px;line-height:1.58}
+.tag{
+  font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);border:1px solid rgba(255,92,22,.4);border-radius:999px;padding:2px 7px;
+}
 
-        kbd {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-family: 'SF Mono', Monaco, monospace;
-            font-size: 12px;
-        }
+/* ── Modes ───────────────────────────────────────────────── */
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:760px){.modes{grid-template-columns:1fr}}
+.mode{border:1px solid var(--line);border-radius:16px;padding:clamp(24px,3.2vw,34px);background:var(--ink-2)}
+.mode.pro{border-color:rgba(255,92,22,.34);background:linear-gradient(180deg,rgba(255,92,22,.055),transparent 62%),var(--ink-2)}
+.mode-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.mode-h h3{font-family:var(--serif);font-size:29px;font-weight:400;letter-spacing:-.01em}
+.mode-sub{color:var(--dim);font-size:13.5px;margin-bottom:20px}
+.mode ul{list-style:none;display:flex;flex-direction:column;gap:11px}
+.mode li{position:relative;padding-left:16px;font-size:14.5px;color:var(--muted);line-height:1.5}
+.mode li b{color:var(--paper);font-weight:500}
+.mode li::before{content:'';position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:50%;background:var(--line-2)}
+.mode.pro li::before{background:var(--accent)}
+.mode-foot{margin-top:20px;padding-top:17px;border-top:1px solid var(--line);font-size:13px;color:var(--dim)}
 
-        /* CTA */
-        .cta {
-            background: var(--gradient);
-            color: white;
-            text-align: center;
-        }
+/* ── Shortcuts ───────────────────────────────────────────── */
+.keys{display:grid;grid-template-columns:1fr;gap:0 44px}
+@media(min-width:760px){.keys{grid-template-columns:1fr 1fr}}
+.krow{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--line)}
+.krow span{color:var(--muted);font-size:14.5px}
+.kcombo{display:flex;gap:4px;flex:none;min-width:140px}
+kbd{
+  font-family:var(--mono);font-size:11px;font-weight:500;
+  background:var(--ink-2);border:1px solid var(--line-2);
+  border-bottom-width:2px;border-radius:6px;padding:4px 8px;
+  color:var(--paper);min-width:26px;text-align:center;
+}
 
-        .cta h2 { font-size: 2rem; margin-bottom: 16px; }
-        .cta p { opacity: 0.9; margin-bottom: 32px; max-width: 500px; margin-left: auto; margin-right: auto; }
+/* ── Testimonials ────────────────────────────────────────── */
+.marquee{position:relative;overflow:hidden;padding:4px 0;
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);
+  mask-image:linear-gradient(90deg,transparent,#000 9%,#000 91%,transparent);
+}
+.mtrack{display:flex;gap:16px;width:max-content;animation:slide 58s linear infinite}
+.marquee:hover .mtrack{animation-play-state:paused}
+@keyframes slide{to{transform:translateX(-50%)}}
+.quote{
+  width:330px;flex:none;border:1px solid var(--line);border-radius:14px;
+  padding:22px;background:var(--ink-2);
+}
+.stars{color:var(--accent);font-size:12px;letter-spacing:.16em;margin-bottom:11px}
+.quote p{font-size:14.5px;line-height:1.6;color:var(--paper);margin-bottom:15px}
+.qwho{display:flex;align-items:center;gap:10px}
+.qav{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;
+  background:var(--ink-3);border:1px solid var(--line-2);
+  font-size:12px;font-weight:600;color:var(--muted);flex:none}
+.qn{font-size:13px;font-weight:500}
+.qs{font-family:var(--mono);font-size:10px;letter-spacing:.09em;color:var(--dim);text-transform:uppercase}
 
-        /* Footer */
-        footer {
-            background: var(--bg-secondary);
-            padding: 48px 0;
-            text-align: center;
-        }
+/* ── Privacy ─────────────────────────────────────────────── */
+.priv{
+  border:1px solid var(--line);border-radius:18px;
+  padding:clamp(28px,4.4vw,52px);background:var(--ink-2);position:relative;overflow:hidden;
+}
+.priv::before{
+  content:'';position:absolute;top:-70%;right:-14%;width:460px;height:460px;
+  background:radial-gradient(circle,rgba(255,92,22,.09),transparent 66%);pointer-events:none;
+}
+.priv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:26px;margin-top:30px;position:relative}
+.pitem-k{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:500;margin-bottom:7px}
+.pitem-k svg{width:15px;height:15px;color:var(--accent);flex:none}
+.pitem p{color:var(--muted);font-size:13.5px;line-height:1.55}
 
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 32px;
-            margin-bottom: 24px;
-        }
+/* ── CTA ─────────────────────────────────────────────────── */
+.final{text-align:center;padding:clamp(76px,11vw,148px) 0}
+.final h2{font-size:clamp(38px,7vw,82px);margin-bottom:20px}
+.final p{color:var(--muted);margin:0 auto 32px;max-width:440px}
 
-        .footer-links a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.2s;
-        }
+footer{border-top:1px solid var(--line);padding:38px 0 46px}
+.foot{display:flex;align-items:center;gap:16px 26px;flex-wrap:wrap}
+.foot-l{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14.5px}
+.foot-l img{width:22px;height:22px;border-radius:6px}
+.foot nav{position:static;background:none;backdrop-filter:none;border:none;display:flex;gap:22px;margin-left:auto}
+.foot a{color:var(--muted);text-decoration:none;font-size:13.5px;transition:color .2s}
+.foot a:hover{color:var(--paper)}
+.foot-b{margin-top:22px;padding-top:22px;border-top:1px solid var(--line);
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.05em}
 
-        .footer-links a:hover { color: var(--accent); }
-        
-        .footer-text { color: var(--text-secondary); font-size: 14px; }
-        .footer-text a { color: var(--text); text-decoration: none; }
-        .footer-privacy { margin-top: 16px; font-size: 12px; color: var(--text-secondary); }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero { padding: 60px 0; }
-            .hero h1 { font-size: 2rem; }
-            .hero p { font-size: 1rem; }
-            .section-title { font-size: 1.5rem; }
-            .download-buttons { flex-direction: column; align-items: center; }
-            .download-btn { width: 100%; max-width: 280px; justify-content: center; }
-        }
-        /* Simple vs Pro */
-        .modes-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 24px;
-            max-width: 860px;
-            margin: 0 auto;
-        }
-
-        .mode-card {
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 28px;
-        }
-
-        .mode-card.pro { border-color: var(--accent); }
-
-        .mode-card h3 {
-            font-size: 1.4rem;
-            margin-bottom: 4px;
-        }
-
-        .pro-tag {
-            font-size: 0.7rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--accent);
-            border: 1px solid var(--accent);
-            border-radius: 10px;
-            padding: 2px 8px;
-            vertical-align: middle;
-        }
-
-        .mode-sub {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            margin-bottom: 16px;
-        }
-
-        .mode-card ul {
-            list-style: none;
-            margin-bottom: 16px;
-        }
-
-        .mode-card li {
-            padding: 6px 0 6px 24px;
-            position: relative;
-            font-size: 0.95rem;
-        }
-
-        .mode-card li::before {
-            content: '→';
-            position: absolute;
-            left: 0;
-            color: var(--accent);
-        }
-
-        .mode-note {
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            font-style: italic;
-        }
-
-    </style>
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+  html{scroll-behavior:auto}
+  .rv{opacity:1;transform:none}
+  .redacted::after{transform:scaleX(1)}
+  .mtrack{animation:none}
+}
+</style>
 </head>
 <body>
-    <section class="hero">
-        <div class="container hero-content">
-            <img src="images/app-icon-128.png" alt="Content Edit & Blur" class="logo">
-            <div class="badge">✨ v2.3 — Highlighter, step badges, move &amp; resize</div>
-            <h1>Content Edit & Blur</h1>
-            <p>Edit, blur, redact and annotate any webpage. Perfect for mockups, screenshots and screen shares.</p>
-            
-            <div class="download-buttons">
-                <a href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh" class="download-btn" target="_blank">
-                    <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#4285F4" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="#4285F4"/></svg>
-                    Chrome
-                </a>
-                <a href="https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur" class="download-btn" target="_blank">
-                    <svg viewBox="0 0 24 24" fill="#FF7139"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-                    Firefox
-                </a>
-                <a href="https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl" class="download-btn" target="_blank">
-                    <svg viewBox="0 0 24 24" fill="#0078D4"><path d="M21 12c0-4.97-4.03-9-9-9s-9 4.03-9 9c0 2.39.94 4.56 2.47 6.17.46-.09.94-.17 1.44-.17 1.97 0 3.78.79 5.09 2.07V21c0 .55.45 1 1 1s1-.45 1-1v-.93c1.31-1.28 3.12-2.07 5.09-2.07.5 0 .98.08 1.44.17C20.06 16.56 21 14.39 21 12z"/></svg>
-                    Edge
-                </a>
-            </div>
-        </div>
-    </section>
+<div class="grain"></div>
 
-    <section>
-        <div class="container">
-            <h2 class="section-title">Powerful Features</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon edit">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                    </div>
-                    <h3>Edit Text</h3>
-                    <p>Click any text to edit it directly on the page. Use Alt+R to replace all occurrences. Double-click images to swap them.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon blur">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6" stroke-dasharray="2 2"/><circle cx="12" cy="12" r="2"/></svg>
-                    </div>
-                    <h3>Blur Elements</h3>
-                    <p>Click to blur any element. Click again for stronger blur. Perfect for hiding sensitive data in screenshots.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon hide">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                    </div>
-                    <h3>Hide Elements</h3>
-                    <p>Completely remove any element from view with a single click. Great for ads, banners, or distractions.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon redact">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="10" rx="1" fill="currentColor"/></svg>
-                    </div>
-                    <h3>Redact</h3>
-                    <p>Blur can sometimes be reversed. Redact covers an element with a solid, irreversible block — nothing survives to be recovered.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon draw">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8v8H8z" stroke-dasharray="2 2"/></svg>
-                    </div>
-                    <h3>Draw to Blur</h3>
-                    <p>Draw rectangles anywhere on the page to create custom blur regions. Perfect for blurring parts of images.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon annotate">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-                    </div>
-                    <h3>Annotate</h3>
-                    <p>Arrows, circles, a highlighter that keeps text readable, and text notes. Freehand pen, boxes and numbered step badges in Pro. Move or resize any mark. Marks vanish on reload unless you ask to keep them.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon site">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                    </div>
-                    <h3>Site-Wide Rules</h3>
-                    <p>Apply a rule to every page on a domain, not just one URL. Set it once and it follows you around the site.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon persist">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                    </div>
-                    <h3>Auto-Save Changes</h3>
-                    <p>Your changes are saved automatically. They'll be restored when you revisit the page!</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon screenshot">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                    </div>
-                    <h3>Quick Screenshot</h3>
-                    <p>Take a screenshot with all your edits applied. One click to capture and download.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+<nav id="nav">
+  <div class="nav-in">
+    <a class="nav-mark" href="#top">
+      <img src="images/app-icon-128.png" alt="">
+      <span>Content Edit &amp; Blur</span>
+    </a>
+    <div class="nav-links">
+      <a href="#demo">Demo</a>
+      <a href="#tools">Tools</a>
+      <a href="#privacy">Privacy</a>
+      <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension">GitHub</a>
+      <a class="nav-cta" href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh">Add to Chrome</a>
+    </div>
+  </div>
+</nav>
 
-    <section style="background: var(--bg-secondary);">
-        <div class="container">
-            <h2 class="section-title">Simple by default. Powerful when you need it.</h2>
-            <div class="modes-grid">
-                <div class="mode-card">
-                    <h3>Simple</h3>
-                    <p class="mode-sub">What the toolbar opens with</p>
-                    <ul>
-                        <li>Edit, Blur, Hide, Draw</li>
-                        <li>Annotate — arrows, circles, highlighter, text notes</li>
-                        <li>Undo, Screenshot, Reset</li>
-                    </ul>
-                    <p class="mode-note">Everything most people ever need, with nothing in the way.</p>
-                </div>
-                <div class="mode-card pro">
-                    <h3>Pro <span class="pro-tag">one click away</span></h3>
-                    <p class="mode-sub">Adds, without cluttering Simple</p>
-                    <ul>
-                        <li><strong>Redact</strong> — irreversible, unlike blur</li>
-                        <li><strong>Scope</strong> — apply a rule site-wide, not just one page</li>
-                        <li><strong>Rules panel</strong> — review, re-scope or delete any rule</li>
-                        <li><strong>Export / import</strong> rules as JSON</li>
-                        <li><strong>Redo</strong>, and a draw-style choice</li>
-                        <li>Annotate: <strong>box</strong>, freehand <strong>pen</strong>, numbered <strong>steps</strong></li>
-                    </ul>
-                    <p class="mode-note">Your choice is remembered.</p>
-                </div>
-            </div>
-        </div>
-    </section>
+<header class="hero" id="top">
+  <div class="wrap hero-in">
+    <div class="eyebrow rise d1"><b>v2.3</b> Highlighter · Step badges · Move &amp; resize</div>
+    <h1>
+      <span class="rise d2" style="display:block">Take the screenshot.</span>
+      <span class="l2 rise d3">Leave the <span class="redacted" title="Yes, that is the extension">secrets</span>.</span>
+    </h1>
+    <p class="sub rise d4">
+      A browser extension to <em>edit</em>, <em>blur</em>, <em>redact</em> and <em>annotate</em> any webpage —
+      for mockups, screenshots and screen shares. Everything happens locally. Nothing ever leaves your machine.
+    </p>
+    <div class="cta-row rise d5">
+      <a class="btn btn-primary" href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.5"/><circle cx="12" cy="12" r="3.6"/><path d="M12 8.4h9.2M8.9 13.8 4.3 21M15.1 13.8 10.5 21"/></svg>
+        Add to Chrome
+      </a>
+      <a class="btn" href="https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.5"/><path d="M4 9c2.4-3.4 7-4.4 10.6-2.4M20 14c-1.6 3.9-6 6-10 4.6"/></svg>
+        Firefox
+      </a>
+      <a class="btn" href="https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9.5"/><path d="M3.6 14.5c3-1.2 12-3.4 16.8 0"/></svg>
+        Edge
+      </a>
+    </div>
+    <p class="hero-note rise d6">FREE &amp; OPEN SOURCE · NO ACCOUNT · NO TRACKING</p>
+  </div>
+</header>
 
-    <section>
-        <div class="container">
-            <h2 class="section-title">How It Works</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Click the Extension</h3>
-                    <p>Click the icon in your browser toolbar to open the floating toolbar</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Choose a Tool</h3>
-                    <p>Edit, Blur, Hide, Draw or Annotate — plus Redact and more in Pro mode</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>Click or Drag</h3>
-                    <p>Hover to preview, press ↑ / ↓ to pick the right element, then click to apply</p>
-                </div>
-            </div>
-        </div>
-    </section>
+<!-- The demo is the pitch: a working copy of the extension, running on a fake page. -->
+<section class="demo-sec" id="demo">
+  <div class="wrap">
+    <div class="demo-head rv">
+      <div>
+        <span class="label">Live demo — no install</span>
+        <h2 style="margin-bottom:8px">Try it right here.</h2>
+      </div>
+      <p>Pick a tool, then click anything in the page below. <b>This is the real interaction model</b>, running on a fake dashboard.</p>
+    </div>
 
-    <section>
-        <div class="container">
-            <h2 class="section-title">Keyboard Shortcuts</h2>
-            <table class="shortcuts-table">
-                <tr><th>Shortcut</th><th>Action</th></tr>
-                <tr><td><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd></td><td>Toggle toolbar</td></tr>
-                <tr><td><kbd>Alt</kbd> + <kbd>1</kbd></td><td>Edit mode</td></tr>
-                <tr><td><kbd>Alt</kbd> + <kbd>2</kbd></td><td>Blur mode</td></tr>
-                <tr><td><kbd>Alt</kbd> + <kbd>3</kbd></td><td>Hide mode</td></tr>
-                <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Select parent / child element</td></tr>
-                <tr><td><kbd>Enter</kbd></td><td>Apply to the selected element</td></tr>
-                <tr><td><kbd>Ctrl</kbd> + <kbd>Z</kbd></td><td>Undo</td></tr>
-                <tr><td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Z</kbd></td><td>Redo</td></tr>
-                <tr><td><kbd>Esc</kbd></td><td>Deactivate current mode</td></tr>
-                <tr><td><kbd>Alt</kbd> + <kbd>R</kbd></td><td>Replace selected text</td></tr>
-            </table>
-        </div>
-    </section>
+    <div class="frame rv s1 demo" id="demo-root">
+      <div class="bar" role="toolbar" aria-label="Demo tools">
+        <button class="tool" data-tool="blur" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" stroke-dasharray="2 2.5"/><circle cx="12" cy="12" r="1.6"/></svg>Blur</button>
+        <button class="tool" data-tool="redact" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="8" rx="1.5" fill="currentColor"/></svg>Redact</button>
+        <button class="tool" data-tool="hide" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.9 17.9A10 10 0 0 1 12 20c-7 0-10-8-10-8a18.4 18.4 0 0 1 5.1-5.9M9.9 4.2A9 9 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="m2 2 20 20"/></svg>Hide</button>
+        <button class="tool" data-tool="mark" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m15 5 4 4L9 19H5v-4z"/><path d="M13 7l4 4"/></svg>Mark</button>
+        <button class="tool" data-tool="edit" aria-pressed="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Edit</button>
+        <div class="bar-sp"></div>
+        <button class="tool ghost" id="undo" disabled>Undo</button>
+        <button class="tool ghost" id="reset" disabled>Reset</button>
+      </div>
 
-    <section>
-        <div class="container">
-            <h2 class="section-title">Loved by Users</h2>
-            <div class="testimonials-grid">
-                <div class="testimonial">
-                    <div class="stars">★★★★★</div>
-                    <p class="testimonial-text">"Super simple, as a product manager I have to screenshot from the web or mock up products. This has already filled my needs easily and quickly!"</p>
-                    <div class="testimonial-author">
-                        <div class="avatar">O</div>
-                        <div><div class="author-name">Odi Paneth</div><div class="author-source">Chrome Web Store</div></div>
-                    </div>
-                </div>
-                <div class="testimonial">
-                    <div class="stars">★★★★★</div>
-                    <p class="testimonial-text">"Great tool for editing screenshots cleanly. Saves me a ton of time!"</p>
-                    <div class="testimonial-author">
-                        <div class="avatar">D</div>
-                        <div><div class="author-name">David Curwin</div><div class="author-source">Chrome Web Store</div></div>
-                    </div>
-                </div>
-                <div class="testimonial">
-                    <div class="stars">★★★★★</div>
-                    <p class="testimonial-text">"Easy to use, much better than other blurring extensions."</p>
-                    <div class="testimonial-author">
-                        <div class="avatar">J</div>
-                        <div><div class="author-name">Julia Sippert</div><div class="author-source">Chrome Web Store</div></div>
-                    </div>
-                </div>
-                <div class="testimonial">
-                    <div class="stars">★★★★★</div>
-                    <p class="testimonial-text">"Does the same thing as similar extensions but is open source and regularly updated. This gives me more confidence."</p>
-                    <div class="testimonial-author">
-                        <div class="avatar">V</div>
-                        <div><div class="author-name">V Keerthi Vikram</div><div class="author-source">Chrome Web Store</div></div>
-                    </div>
-                </div>
-                <div class="testimonial">
-                    <div class="stars">★★★★★</div>
-                    <p class="testimonial-text">"Very easy to use, a great way to hide personal or distracting stuff!"</p>
-                    <div class="testimonial-author">
-                        <div class="avatar">M</div>
-                        <div><div class="author-name">Munir Nasir</div><div class="author-source">Chrome Web Store</div></div>
-                    </div>
-                </div>
-                <div class="testimonial">
-                    <div class="stars">★★★★★</div>
-                    <p class="testimonial-text">"This is so easy to use and very useful in my mockup. Awesome work!"</p>
-                    <div class="testimonial-author">
-                        <div class="avatar">C</div>
-                        <div><div class="author-name">Chi Nguyen</div><div class="author-source">Chrome Web Store</div></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+      <div class="chrome">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div class="url"><b>app.northwind-analytics.com</b>/customers/8842</div>
+      </div>
 
-    <section class="cta">
-        <div class="container">
-            <h2>Get Started for Free</h2>
-            <p>Open source, privacy-focused, and works entirely offline. No data collection, no tracking.</p>
-            <div class="download-buttons">
-                <a href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh" class="download-btn" target="_blank">
-                    Install Now — It's Free
-                </a>
-            </div>
-        </div>
-    </section>
+      <div class="hint" id="hint"><span class="dot"></span><span id="hint-t">Pick a tool above to start</span></div>
 
-    <footer>
-        <div class="container">
-            <div class="footer-links">
-                <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension">GitHub</a>
-                <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/CHANGELOG.md">Changelog</a>
-                <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/issues">Report Issue</a>
-                <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/LICENSE">License (MIT)</a>
-            </div>
-            <p class="footer-text">Made with ❤️ by <a href="https://github.com/HasanAboShally">Hasan Abo-Shally</a></p>
-            <p class="footer-privacy">🔒 100% open source • No data collection • Works offline</p>
+      <div class="stage" id="stage">
+        <div class="m-top">
+          <div class="m-logo" data-t></div>
+          <div class="m-brand" data-t>Northwind Analytics</div>
+          <div class="m-nav"><span data-t>Overview</span><span data-t>Customers</span><span data-t>Billing</span></div>
+          <div class="m-user">
+            <div class="m-av" data-t></div>
+            <div class="m-uname" data-t>Dana Whitfield</div>
+          </div>
         </div>
-    </footer>
+
+        <div class="m-h" data-t>Acme Robotics Ltd.</div>
+        <div class="m-sub" data-t>Enterprise plan · Customer since March 2021</div>
+
+        <div class="m-grid">
+          <div class="m-card">
+            <div class="m-k">Billing email</div>
+            <div class="m-v mono" data-t>ap@acme-robotics.com</div>
+          </div>
+          <div class="m-card">
+            <div class="m-k">Card on file</div>
+            <div class="m-v mono" data-t>4929 8812 0043 5567</div>
+          </div>
+          <div class="m-card">
+            <div class="m-k">Annual contract</div>
+            <div class="m-v big" data-t>$284,900</div>
+            <div class="m-delta" data-t>▲ 18.2% vs last year</div>
+          </div>
+        </div>
+
+        <table class="m-tbl">
+          <thead><tr><th>Invoice</th><th>Contact</th><th class="m-hide-sm">Issued</th><th>Amount</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="m-v mono" style="font-size:13px" data-t>INV-20418</td>
+              <td data-t>m.okafor@acme-robotics.com</td>
+              <td class="m-hide-sm" data-t>12 Mar 2026</td>
+              <td data-t>$71,225.00</td>
+              <td><span class="m-pill" data-t>Paid</span></td>
+            </tr>
+            <tr>
+              <td class="m-v mono" style="font-size:13px" data-t>INV-20417</td>
+              <td data-t>finance@acme-robotics.com</td>
+              <td class="m-hide-sm" data-t>12 Feb 2026</td>
+              <td data-t>$71,225.00</td>
+              <td><span class="m-pill" data-t>Paid</span></td>
+            </tr>
+            <tr>
+              <td class="m-v mono" style="font-size:13px" data-t>INV-20416</td>
+              <td data-t>m.okafor@acme-robotics.com</td>
+              <td class="m-hide-sm" data-t>12 Jan 2026</td>
+              <td data-t>$68,900.00</td>
+              <td><span class="m-pill w" data-t>Overdue</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="demo-foot">
+        <span id="count">Nothing changed yet</span>
+        <span>The real thing also does drawings, arrows, notes &amp; screenshots — <a href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh">install it</a></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="rule"></div></div>
+
+<!-- The blur-vs-redact argument, demonstrated rather than asserted. -->
+<section class="sec" id="why">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">Why redaction exists</span>
+      <h2>Blurring hides it.<br><em>Redaction removes it.</em></h2>
+      <p>A blur keeps every pixel it started with — it just spreads them out. Given the original
+        layout and a known blur radius, that is often enough to reconstruct what was underneath.
+        Redaction has nothing left to reconstruct.</p>
+    </div>
+
+    <div class="proof rv s1" id="proof">
+      <div class="pcard danger">
+        <div class="pcard-h"><span class="label">Blurred</span><span class="label" style="color:var(--accent)">Recoverable</span></div>
+        <div class="pcard-b">
+          <div class="pcard-k">Card on file</div>
+          <div class="pcard-v pv-blur">4929 8812 0043 5567</div>
+        </div>
+        <div class="pcard-note" id="note-blur">The data is still there, spread across neighbouring pixels.</div>
+      </div>
+      <div class="pcard">
+        <div class="pcard-h"><span class="label">Redacted</span><span class="label">Gone</span></div>
+        <div class="pcard-b">
+          <div class="pcard-k">Card on file</div>
+          <div class="pcard-v pv-redact">4929 8812 0043 5567</div>
+        </div>
+        <div class="pcard-note"><b>Nothing to recover.</b> The pixels are replaced, not rearranged.</div>
+      </div>
+    </div>
+
+    <div class="proof-act rv s2">
+      <button class="btn-sm" id="recover">Attempt recovery →</button>
+      <p class="proof-cap">A dramatisation, not a real attack — but the principle holds. Use <b style="color:var(--paper)">Redact</b> when the content genuinely must not leak.</p>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="tools" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">The toolkit</span>
+      <h2>Six tools. <em>One click each.</em></h2>
+    </div>
+    <div class="tools">
+      <div class="tcard rv">
+        <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></div>
+        <h3>Edit</h3>
+        <p>Click any text and rewrite it. <b>Alt+R</b> replaces every occurrence at once. Double-click an image to swap it for a local file.</p>
+      </div>
+      <div class="tcard rv s1">
+        <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" stroke-dasharray="2 2.5"/><circle cx="12" cy="12" r="1.6"/></svg></div>
+        <h3>Blur</h3>
+        <p>Click to blur. Click again to go stronger, once more to clear. Reversible, which is exactly why Redact exists alongside it.</p>
+      </div>
+      <div class="tcard rv s2">
+        <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="8" rx="1.5" fill="currentColor"/></svg></div>
+        <h3>Redact <span class="tag">Pro</span></h3>
+        <p>A solid, irreversible block. Flattens text, images, video and canvas alike — nothing survives to be recovered.</p>
+      </div>
+      <div class="tcard rv s3">
+        <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.9 17.9A10 10 0 0 1 12 20c-7 0-10-8-10-8a18.4 18.4 0 0 1 5.1-5.9M9.9 4.2A9 9 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="m2 2 20 20"/></svg></div>
+        <h3>Hide &amp; Draw</h3>
+        <p>Remove an element entirely, or drag a rectangle to blur any arbitrary region — no element required.</p>
+      </div>
+      <div class="tcard rv s4">
+        <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20c5-9 11-13.5 16-13.5"/><path d="M14.5 5.5 20 6.5 19 12"/><circle cx="8" cy="9" r="3.4"/></svg></div>
+        <h3>Annotate</h3>
+        <p>Arrows, circles, text notes and a highlighter that keeps the text underneath readable. Boxes, a freehand pen and numbered step badges in Pro.</p>
+      </div>
+      <div class="tcard rv s5">
+        <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5L9 3h6l1.5 3H20a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.6"/></svg></div>
+        <h3>Screenshot</h3>
+        <p>Capture what's on screen with every edit applied. The toolbar and overlays hide themselves first, so they never end up in the shot.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head mid rv">
+      <span class="label">Two modes</span>
+      <h2>Simple by default.<br><em>Powerful on request.</em></h2>
+      <p>Most people need four tools and never think about it again. The rest is one click away, and stays out of the way until you ask.</p>
+    </div>
+    <div class="modes">
+      <div class="mode rv s1">
+        <div class="mode-h"><h3>Simple</h3></div>
+        <p class="mode-sub">What the toolbar opens with</p>
+        <ul>
+          <li><b>Edit, Blur, Hide, Draw</b> — the everyday four</li>
+          <li><b>Annotate</b> — arrows, circles, highlighter, text notes</li>
+          <li><b>Undo, Screenshot, Reset</b></li>
+        </ul>
+        <p class="mode-foot">Nothing else on screen. Nothing to learn.</p>
+      </div>
+      <div class="mode pro rv s2">
+        <div class="mode-h"><h3>Pro</h3><span class="tag">One click away</span></div>
+        <p class="mode-sub">Everything above, plus</p>
+        <ul>
+          <li><b>Redact</b> — irreversible, unlike blur</li>
+          <li><b>Scope</b> — apply a rule to one page or every page on the domain</li>
+          <li><b>Rules panel</b> — review, locate, re-scope or delete any rule</li>
+          <li><b>Export / import</b> your rules as JSON</li>
+          <li><b>Redo</b>, plus a blur-or-block choice for drawn regions</li>
+          <li>Annotate: <b>box</b>, freehand <b>pen</b>, numbered <b>steps</b></li>
+        </ul>
+        <p class="mode-foot">Your choice is remembered.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <span class="label">Muscle memory</span>
+      <h2>Built for the <em>keyboard.</em></h2>
+    </div>
+    <div class="keys rv s1">
+      <div class="krow"><span class="kcombo"><kbd>Alt</kbd><kbd>Shift</kbd><kbd>E</kbd></span><span>Toggle the toolbar</span></div>
+      <div class="krow"><span class="kcombo"><kbd>↑</kbd><kbd>↓</kbd></span><span>Select the parent or child element</span></div>
+      <div class="krow"><span class="kcombo"><kbd>Alt</kbd><kbd>1</kbd></span><span>Edit mode</span></div>
+      <div class="krow"><span class="kcombo"><kbd>Enter</kbd></span><span>Apply to the selection</span></div>
+      <div class="krow"><span class="kcombo"><kbd>Alt</kbd><kbd>2</kbd></span><span>Blur mode</span></div>
+      <div class="krow"><span class="kcombo"><kbd>Ctrl</kbd><kbd>Z</kbd></span><span>Undo — covers every action</span></div>
+      <div class="krow"><span class="kcombo"><kbd>Alt</kbd><kbd>3</kbd></span><span>Hide mode</span></div>
+      <div class="krow"><span class="kcombo"><kbd>Alt</kbd><kbd>R</kbd></span><span>Replace all occurrences</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:0">
+  <div class="wrap sec-head mid rv" style="margin-bottom:34px">
+    <span class="label">From the Chrome Web Store</span>
+    <h2>What people use it for.</h2>
+  </div>
+  <div class="marquee rv s1">
+    <div class="mtrack" id="mtrack">
+      <div class="quote"><div class="stars">★★★★★</div><p>"Super simple. As a product manager I have to screenshot from the web or mock up products. This has already filled my needs easily and quickly!"</p><div class="qwho"><div class="qav">O</div><div><div class="qn">Odi Paneth</div><div class="qs">Chrome Web Store</div></div></div></div>
+      <div class="quote"><div class="stars">★★★★★</div><p>"Great tool for editing screenshots cleanly. Saves me a ton of time!"</p><div class="qwho"><div class="qav">D</div><div><div class="qn">David Curwin</div><div class="qs">Chrome Web Store</div></div></div></div>
+      <div class="quote"><div class="stars">★★★★★</div><p>"Easy to use, much better than other blurring extensions."</p><div class="qwho"><div class="qav">J</div><div><div class="qn">Julia Sippert</div><div class="qs">Chrome Web Store</div></div></div></div>
+      <div class="quote"><div class="stars">★★★★★</div><p>"Does the same thing as similar extensions but is open source and regularly updated. This gives me more confidence."</p><div class="qwho"><div class="qav">V</div><div><div class="qn">V Keerthi Vikram</div><div class="qs">Chrome Web Store</div></div></div></div>
+      <div class="quote"><div class="stars">★★★★★</div><p>"Very easy to use, a great way to hide personal or distracting stuff!"</p><div class="qwho"><div class="qav">M</div><div><div class="qn">Munir Nasir</div><div class="qs">Chrome Web Store</div></div></div></div>
+      <div class="quote"><div class="stars">★★★★★</div><p>"This is so easy to use and very useful in my mockup. Awesome work!"</p><div class="qwho"><div class="qav">C</div><div><div class="qn">Chi Nguyen</div><div class="qs">Chrome Web Store</div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="privacy" style="padding-top:0">
+  <div class="wrap">
+    <div class="priv rv">
+      <span class="label">Privacy</span>
+      <h2 style="max-width:640px">It never phones home.<br><em>Not even once.</em></h2>
+      <p style="color:var(--muted);max-width:560px;position:relative">
+        The extension makes no external requests of any kind. No telemetry, no analytics,
+        no account. Everything you edit stays in your browser's local storage.
+      </p>
+      <div class="priv-grid">
+        <div class="pitem">
+          <div class="pitem-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Works offline</div>
+          <p>No network calls, so nothing to intercept and nothing to leak.</p>
+        </div>
+        <div class="pitem">
+          <div class="pitem-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Local storage only</div>
+          <p>Your rules live in <code style="font-family:var(--mono);font-size:12px">chrome.storage.local</code>. Never synced, never uploaded.</p>
+        </div>
+        <div class="pitem">
+          <div class="pitem-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16"/></svg>Minimal footprint</div>
+          <p>A 24-line script runs on pages, only to track the last right-clicked element. The editor loads on demand.</p>
+        </div>
+        <div class="pitem">
+          <div class="pitem-k"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9.5"/><path d="M9 12.5l2 2 4.5-4.5"/></svg>Auditable</div>
+          <p>MIT licensed, every line on GitHub, with the test suite that guards it.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="final">
+  <div class="wrap">
+    <h2 class="rv">Go make something<br><em>presentable.</em></h2>
+    <p class="rv s1">Free, open source, and about thirty seconds from being useful.</p>
+    <div class="cta-row rv s2">
+      <a class="btn btn-primary" href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh">Add to Chrome — free</a>
+      <a class="btn" href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7 0-.7 0-.7 1.2 0 1.9 1.2 1.9 1.2 1.1 1.9 2.9 1.3 3.6 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C16.9 4.7 18 5 18 5c.6 1.7.2 2.9.1 3.2.7.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5z"/></svg>
+        Star on GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div class="foot-l"><img src="images/app-icon-128.png" alt="">Content Edit &amp; Blur</div>
+      <nav>
+        <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension">GitHub</a>
+        <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/issues">Report an issue</a>
+        <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/LICENSE">MIT License</a>
+      </nav>
+    </div>
+    <div class="foot-b">
+      <span>MADE BY <a href="https://github.com/HasanAboShally" style="color:var(--muted)">HASAN ABO-SHALLY</a></span>
+      <span>NO TRACKERS · NO COOKIES · NO THIRD-PARTY REQUESTS</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ── Nav shadow ─────────────────────────────────────────── */
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('stuck', window.scrollY > 8);
+  addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  /* ── Scroll reveals ─────────────────────────────────────── */
+  const items = document.querySelectorAll('.rv');
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: .08 });
+    items.forEach((el) => io.observe(el));
+  } else {
+    items.forEach((el) => el.classList.add('in'));
+  }
+
+  /* ── The demo ───────────────────────────────────────────── */
+  const root  = document.getElementById('demo-root');
+  const stage = document.getElementById('stage');
+  const hintT = document.getElementById('hint-t');
+  const countEl = document.getElementById('count');
+  const undoBtn = document.getElementById('undo');
+  const resetBtn = document.getElementById('reset');
+  const tools = [...root.querySelectorAll('[data-tool]')];
+
+  const COPY = {
+    blur:   'Blur — click anything to soften it',
+    redact: 'Redact — click to cover it permanently',
+    hide:   'Hide — click to remove it from the page',
+    mark:   'Mark — click to highlight, text stays readable',
+    edit:   'Edit — click any text and type over it'
+  };
+
+  let tool = null;
+  const history = [];
+
+  const setTool = (next) => {
+    tool = tool === next ? null : next;
+    tools.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.tool === tool)));
+    root.classList.toggle('armed', !!tool);
+    hintT.textContent = tool ? COPY[tool] : 'Pick a tool above to start';
+  };
+
+  const sync = () => {
+    const n = history.length;
+    undoBtn.disabled = resetBtn.disabled = n === 0;
+    countEl.textContent = n === 0
+      ? 'Nothing changed yet'
+      : `${n} change${n > 1 ? 's' : ''} · the real one remembers these on reload`;
+  };
+
+  tools.forEach((b) => b.addEventListener('click', () => setTool(b.dataset.tool)));
+
+  // Editing needs to survive its own click, so it is applied separately.
+  const startEdit = (el) => {
+    const before = el.innerHTML;
+    el.setAttribute('data-fx', 'edit');
+    el.contentEditable = 'true';
+    el.focus();
+    getSelection().selectAllChildren(el);
+
+    const stop = () => {
+      el.contentEditable = 'false';
+      el.removeAttribute('data-fx');
+      el.removeEventListener('blur', stop);
+      el.removeEventListener('keydown', onKey);
+      if (el.innerHTML !== before) { history.push({ el, kind: 'html', before }); sync(); }
+    };
+    const onKey = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+      if (e.key === 'Escape') { el.innerHTML = before; el.blur(); }
+    };
+    el.addEventListener('blur', stop);
+    el.addEventListener('keydown', onKey);
+  };
+
+  stage.addEventListener('click', (e) => {
+    if (!tool) return;
+    const el = e.target.closest('[data-t]');
+    if (!el || !stage.contains(el)) return;
+    e.preventDefault();
+
+    if (tool === 'edit') { startEdit(el); return; }
+
+    const before = el.getAttribute('data-fx');
+    if (before === tool) return;
+    el.setAttribute('data-fx', tool);
+    history.push({ el, kind: 'fx', before });
+    sync();
+  });
+
+  const undo = () => {
+    const last = history.pop();
+    if (!last) return;
+    if (last.kind === 'html') last.el.innerHTML = last.before;
+    else if (last.before) last.el.setAttribute('data-fx', last.before);
+    else last.el.removeAttribute('data-fx');
+    sync();
+  };
+
+  undoBtn.addEventListener('click', undo);
+  resetBtn.addEventListener('click', () => { while (history.length) undo(); });
+
+  sync();
+
+  /* ── Blur-vs-redact demonstration ───────────────────────── */
+  const proof = document.getElementById('proof');
+  const recover = document.getElementById('recover');
+  const noteBlur = document.getElementById('note-blur');
+  const NOTE_OFF = 'The data is still there, spread across neighbouring pixels.';
+  const NOTE_ON  = '<b>Recovered.</b> Every digit was still encoded in the blur.';
+
+  recover.addEventListener('click', () => {
+    const on = proof.classList.toggle('revealed');
+    recover.textContent = on ? 'Reset ↺' : 'Attempt recovery →';
+    noteBlur.innerHTML = on ? NOTE_ON : NOTE_OFF;
+  });
+
+  /* ── Marquee: duplicate the track so the loop is seamless ─ */
+  const track = document.getElementById('mtrack');
+  track.append(...[...track.children].map((n) => n.cloneNode(true)));
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest something the extension should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: >
+        Describe the situation rather than the solution. Knowing the underlying task
+        usually leads to a better feature than the one first imagined.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Where does this belong?
+      description: >
+        The toolbar has a Simple mode (the essentials) and a Pro mode (power features).
+        Keeping Simple mode simple is a deliberate goal.
+      options:
+        - Simple mode — most people would use this
+        - Pro mode — powerful but niche
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Anything you've tried instead?
+      description: Workarounds, other extensions, or why the current tools fall short.

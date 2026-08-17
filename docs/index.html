@@ -3,15 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Content Edit & Blur - Edit, Blur & Hide Web Content</title>
-    <meta name="description" content="The best browser extension for editing, blurring, and hiding content on any webpage. Perfect for mockups, screenshots, screen recordings, and protecting sensitive data.">
-    <meta name="keywords" content="browser extension, blur, edit, hide, mockup, screenshot, privacy, Chrome, Firefox, Edge">
-    <link rel="icon" type="image/png" href="../images/app-icon-128.png">
-    
+    <title>Content Edit & Blur — Edit, Blur, Redact & Annotate Any Webpage</title>
+    <meta name="description" content="Browser extension for editing, blurring, redacting and annotating any webpage. Perfect for mockups, screenshots, screen shares and protecting sensitive data. Open source, works offline.">
+    <meta name="keywords" content="browser extension, blur, redact, annotate, edit, hide, mockup, screenshot, privacy, Chrome, Firefox, Edge">
+    <link rel="icon" type="image/png" href="images/app-icon-128.png">
+    <link rel="canonical" href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
+    <meta name="theme-color" content="#1a73e8">
+
     <!-- Open Graph -->
-    <meta property="og:title" content="Content Edit & Blur - Browser Extension">
-    <meta property="og:description" content="Edit, blur, and hide content on any webpage. Perfect for mockups and screenshots.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Content Edit & Blur — Browser Extension">
+    <meta property="og:description" content="Edit, blur, redact and annotate any webpage. Open source, works entirely offline.">
     <meta property="og:url" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
+    <meta property="og:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Content Edit & Blur — Browser Extension">
+    <meta name="twitter:description" content="Edit, blur, redact and annotate any webpage. Open source, works entirely offline.">
+    <meta name="twitter:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png">
     
     <style>
         :root {
@@ -69,8 +77,9 @@
         .hero-content { position: relative; z-index: 1; }
         
         .logo {
+            display: block;
             width: 80px; height: 80px;
-            margin-bottom: 24px;
+            margin: 0 auto 24px;
             border-radius: 20px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
@@ -344,15 +353,80 @@
             .download-buttons { flex-direction: column; align-items: center; }
             .download-btn { width: 100%; max-width: 280px; justify-content: center; }
         }
+        /* Simple vs Pro */
+        .modes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            max-width: 860px;
+            margin: 0 auto;
+        }
+
+        .mode-card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 28px;
+        }
+
+        .mode-card.pro { border-color: var(--accent); }
+
+        .mode-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 4px;
+        }
+
+        .pro-tag {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            border-radius: 10px;
+            padding: 2px 8px;
+            vertical-align: middle;
+        }
+
+        .mode-sub {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+        }
+
+        .mode-card ul {
+            list-style: none;
+            margin-bottom: 16px;
+        }
+
+        .mode-card li {
+            padding: 6px 0 6px 24px;
+            position: relative;
+            font-size: 0.95rem;
+        }
+
+        .mode-card li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+        }
+
+        .mode-note {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
     </style>
 </head>
 <body>
     <section class="hero">
         <div class="container hero-content">
-            <img src="../images/app-icon-128.png" alt="Content Edit & Blur" class="logo">
-            <div class="badge">✨ v2.0 — New Toolbar UI, Persistence & More!</div>
+            <img src="images/app-icon-128.png" alt="Content Edit & Blur" class="logo">
+            <div class="badge">✨ v2.3 — Highlighter, step badges, move &amp; resize</div>
             <h1>Content Edit & Blur</h1>
-            <p>Edit, blur, and hide content on any webpage. Perfect for mockups, screenshots, and privacy.</p>
+            <p>Edit, blur, redact and annotate any webpage. Perfect for mockups, screenshots and screen shares.</p>
             
             <div class="download-buttons">
                 <a href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh" class="download-btn" target="_blank">
@@ -442,6 +516,37 @@
         </div>
     </section>
 
+    <section style="background: var(--bg-secondary);">
+        <div class="container">
+            <h2 class="section-title">Simple by default. Powerful when you need it.</h2>
+            <div class="modes-grid">
+                <div class="mode-card">
+                    <h3>Simple</h3>
+                    <p class="mode-sub">What the toolbar opens with</p>
+                    <ul>
+                        <li>Edit, Blur, Hide, Draw</li>
+                        <li>Annotate — arrows, circles, highlighter, text notes</li>
+                        <li>Undo, Screenshot, Reset</li>
+                    </ul>
+                    <p class="mode-note">Everything most people ever need, with nothing in the way.</p>
+                </div>
+                <div class="mode-card pro">
+                    <h3>Pro <span class="pro-tag">one click away</span></h3>
+                    <p class="mode-sub">Adds, without cluttering Simple</p>
+                    <ul>
+                        <li><strong>Redact</strong> — irreversible, unlike blur</li>
+                        <li><strong>Scope</strong> — apply a rule site-wide, not just one page</li>
+                        <li><strong>Rules panel</strong> — review, re-scope or delete any rule</li>
+                        <li><strong>Export / import</strong> rules as JSON</li>
+                        <li><strong>Redo</strong>, and a draw-style choice</li>
+                        <li>Annotate: <strong>box</strong>, freehand <strong>pen</strong>, numbered <strong>steps</strong></li>
+                    </ul>
+                    <p class="mode-note">Your choice is remembered.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section>
         <div class="container">
             <h2 class="section-title">How It Works</h2>
@@ -454,12 +559,12 @@
                 <div class="step">
                     <div class="step-number">2</div>
                     <h3>Choose a Tool</h3>
-                    <p>Select Edit, Blur, Hide, or Draw mode from the toolbar</p>
+                    <p>Edit, Blur, Hide, Draw or Annotate — plus Redact and more in Pro mode</p>
                 </div>
                 <div class="step">
                     <div class="step-number">3</div>
                     <h3>Click or Drag</h3>
-                    <p>Click elements to apply effects, or drag to draw blur regions</p>
+                    <p>Hover to preview, press ↑ / ↓ to pick the right element, then click to apply</p>
                 </div>
             </div>
         </div>
@@ -556,8 +661,9 @@
         <div class="container">
             <div class="footer-links">
                 <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension">GitHub</a>
+                <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/CHANGELOG.md">Changelog</a>
                 <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/issues">Report Issue</a>
-                <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/main/LICENSE">License (MIT)</a>
+                <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/LICENSE">License (MIT)</a>
             </div>
             <p class="footer-text">Made with ❤️ by <a href="https://github.com/HasanAboShally">Hasan Abo-Shally</a></p>
             <p class="footer-privacy">🔒 100% open source • No data collection • Works offline</p>

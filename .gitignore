@@ -4,3 +4,9 @@ tmp
 dist/
 node_modules/
 *.zip
+
+# Copied in by the Pages workflow at build time; never committed.
+docs/images/
+
+# Playwright MCP scratch output
+.playwright-mcp/

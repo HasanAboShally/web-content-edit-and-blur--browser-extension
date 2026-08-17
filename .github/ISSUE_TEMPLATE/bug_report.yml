@@ -1,0 +1,62 @@
+name: Bug report
+description: Something doesn't work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. For anything **security-related**, please don't file a
+        public issue — use [private reporting](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/security/advisories/new) instead.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open the toolbar on ...
+        2. Select Blur mode
+        3. Click the ...
+        4. Reload the page
+    validations:
+      required: true
+
+  - type: input
+    id: site
+    attributes:
+      label: Site it happened on
+      description: If you can share it. A public URL makes this far easier to fix.
+
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      options:
+        - Chrome
+        - Firefox
+        - Edge
+        - Other Chromium-based
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: Shown on the extension's card in your browser's extensions page.
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      description: Any red errors in DevTools (F12 → Console). Optional, but very helpful.
+      render: text

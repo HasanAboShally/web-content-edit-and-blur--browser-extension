@@ -1,0 +1,21 @@
+version: 2
+updates:
+  # The release workflow depends on third-party publishing actions. Keeping them
+  # current matters more here than usual, because a broken one is only discovered
+  # at release time.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci
+    labels: ["dependencies"]
+
+  # playwright is the only dependency, and only for tests.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: deps
+    labels: ["dependencies"]

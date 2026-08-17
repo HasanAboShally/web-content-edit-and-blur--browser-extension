@@ -6,6 +6,7 @@ const MODES = [
   { id: "hide", displayName: "Hide", badgeColor: "#F44336" },
   { id: "redact", displayName: "Block", badgeColor: "#111827" },
   { id: "draw", displayName: "Draw", badgeColor: "#9C27B0" },
+  { id: "annotate", displayName: "Note", badgeColor: "#E11D48" },
 ];
 
 const tabStates = {};
@@ -327,6 +328,7 @@ function hasChanges(changes) {
     // v2
     changes.rules?.length ||
     changes.areas?.length ||
+    changes.annotations?.length ||
     // v1 (still on disk for users who have not re-saved yet)
     changes.blurs?.length ||
     changes.hidden?.length ||

@@ -35,8 +35,9 @@
 | 👁️ **Hide** | Completely hide any element with one click. |
 | ⬛ **Redact** *(Pro)* | Cover an element with an irreversible solid block — nothing survives to be recovered. |
 | ▢ **Draw** | Draw rectangles anywhere to create custom blur or solid regions. |
+| 🖊️ **Annotate** | Mark up the page: arrows, circles, text notes — plus boxes and freehand pen in Pro. |
 | 💾 **Auto-Save** | Changes persist automatically and restore on page reload. |
-| 📸 **Screenshot** | Capture the page with all your edits applied. |
+| 📸 **Screenshot** | Capture the page with all your edits applied. The toolbar hides itself first. |
 
 ### Simple and Pro
 
@@ -52,8 +53,31 @@ Switching to **Pro** (bottom-left of the toolbar) adds:
   re-scope it, or delete it individually
 - **Export / Import** — save your rules to a JSON file and load them elsewhere
 - **Draw style** — choose whether drawn regions blur or block out
+- **Annotate: box and pen** — a rectangle outline and a freehand pen, on top of the
+  arrow, circle and text note available in Simple
 
 Your choice is remembered.
+
+### Annotating
+
+Pick **Annotate** and choose a tool:
+
+| Tool | How |
+|------|-----|
+| ➜ **Arrow** | Drag from the tail to the point you want to indicate. |
+| ◯ **Circle** | Drag a box; the ellipse is drawn inside it. Better than freehand for circling things — hand-drawn circles look shaky. |
+| **T Text** | Click, then type. `Enter` commits, `Shift+Enter` adds a line, `Esc` closes. Click an existing note to edit it. |
+| ▭ **Box** *(Pro)* | Drag a rectangle outline. |
+| ✎ **Pen** *(Pro)* | Freehand. The stroke is smoothed as you draw. |
+
+Pick a colour from the swatches. To remove a mark, leave Annotate mode and click it,
+or delete it from the rules panel in Pro.
+
+**Annotations are not saved by default.** Most marks exist to explain one screenshot,
+so they disappear on reload rather than following you around. If you want them to stay,
+turn on **Keep after reload** — that applies to every mark on the page and to new ones
+you draw. Unlike blur and hide rules, annotations are always tied to the one page: an
+arrow at a fixed position has no meaning on a different URL.
 
 ### Blur vs. Redact
 
@@ -76,7 +100,7 @@ Install from your browser's extension store:
 ## How to Use
 
 1. **Click the extension icon** to open the floating toolbar
-2. **Select a tool** — Edit, Blur, Hide, Draw (or Redact in Pro)
+2. **Select a tool** — Edit, Blur, Hide, Draw, Annotate (or Redact in Pro)
 3. **Hover** to see exactly what you are about to change
 4. **Press ↑ / ↓** to grow or shrink the selection to the parent or child element
 5. **Click** to apply, or press `Enter`
@@ -141,6 +165,26 @@ It reads nothing else and sends nothing anywhere. The full editing script is onl
 once you actually activate a mode.
 
 ## Changelog
+
+### v2.2.0 (2026)
+- ✨ **New**: Annotate mode — arrows, circles and text notes, plus boxes and a smoothed
+  freehand pen in Pro. Session-only by default, with a **Keep after reload** toggle.
+- 🔧 **Improved**: Screenshots no longer capture the extension's own toolbar and
+  overlays. They are hidden for the capture and restored afterwards.
+- 🐛 **Fixed**: A page whose only content was a kept annotation was treated as empty by
+  the background worker, which deleted the storage key instead of writing it.
+- 🐛 **Fixed**: Starting a text note immediately lost focus to the page, so the note was
+  discarded as empty before a character could be typed.
+- 🐛 **Fixed**: Abandoning an empty text note pushed a duplicate history entry, which
+  silently consumed the next undo.
+- 🐛 **Fixed**: A long freehand stroke ate its own beginning while being drawn — the
+  point buffer dropped the oldest samples once it filled. It is now thinned evenly, so
+  the whole stroke survives at slightly lower resolution.
+- 🐛 **Fixed**: Clicking an annotation in blur/hide mode targeted the extension's own
+  overlay, saving a meaningless positional rule that would match unrelated content on
+  the next visit.
+- 🐛 **Fixed**: If the extension was reloaded or updated while a tab stayed open, taking
+  a screenshot left the toolbar and overlays invisible until the page was reloaded.
 
 ### v2.1.0 (2026)
 - ✨ **New**: Redact mode — an irreversible solid block, unlike reversible blur

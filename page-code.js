@@ -46,20 +46,108 @@
     //   rule        { id, kind: 'blur'|'hide'|'redact', selector, level, scope }
     //   area        { id, kind: 'blur'|'redact', x, y, width, height, scope }
     //   replacement { id, oldText, newText, scope }
+    //   annotation  { id, kind: 'ellipse'|'rect'|'arrow'|'pen'|'text',
+    //                 points: [[x,y], ...], text, color, size, boxW, persist, scope }
     //
     // scope is 'page' (this exact URL) or 'site' (every page on this origin).
+    //
+    // Annotations are the one additive kind - everything else removes or alters existing
+    // content. They are also the one kind that is session-only by default: "blur my salary"
+    // is a durable intent worth restoring on every visit, "circle this button" is usually
+    // for a single screenshot. `persist` opts an annotation into being saved.
     const SCHEMA_VERSION = 2;
     const KINDS = ['blur', 'hide', 'redact'];
+    const ANNOTATION_KINDS = ['ellipse', 'rect', 'arrow', 'pen', 'text'];
 
-    let state = { rules: [], areas: [], replacements: [] };
+    // Minimum points each kind needs to be renderable: a start and an end, except free
+    // text which is anchored by a single corner.
+    const ANNOTATION_MIN_POINTS = { ellipse: 2, rect: 2, arrow: 2, pen: 2, text: 1 };
+    // A pen stroke is bounded so a long scribble cannot stall the render path or bloat
+    // storage. Both limits are enforced by thinning the stroke, never by cutting it
+    // short, so its shape is always preserved end to end.
+    const PEN_MAX_POINTS = 600;
+    const PEN_MIN_GAP = 2;
+
+    // Evenly thins a list down to at most `max` entries, always keeping the first and
+    // last so the stroke still starts and ends where the user put it.
+    function decimate(points, max) {
+        if (points.length <= max) return points;
+        const stride = points.length / max;
+        const out = [];
+        for (let i = 0; i < max - 1; i++) out.push(points[Math.floor(i * stride)]);
+        out.push(points[points.length - 1]);
+        return out;
+    }
+
+    const ANNOTATION_PALETTE = ['#e11d48', '#f59e0b', '#16a34a', '#2563eb', '#111827'];
+
+    let state = { rules: [], areas: [], replacements: [], annotations: [] };
+
+    function emptyState() {
+        return { rules: [], areas: [], replacements: [], annotations: [] };
+    }
 
     // Pro settings, mirrored from chrome.storage so the render path stays synchronous.
     let settings = {
-        uiMode: 'simple',       // 'simple' | 'pro'
-        defaultScope: 'page',   // scope applied to newly created rules
-        blurStrength: 1,        // index into BLUR_LEVELS for new blur rules
-        drawKind: 'blur'        // 'blur' | 'redact' for newly drawn areas
+        uiMode: 'simple',              // 'simple' | 'pro'
+        defaultScope: 'page',          // scope applied to newly created rules
+        blurStrength: 1,               // index into BLUR_LEVELS for new blur rules
+        drawKind: 'blur',              // 'blur' | 'redact' for newly drawn areas
+        annotateTool: 'arrow',         // active annotation tool
+        annotateColor: ANNOTATION_PALETTE[0],
+        annotateKeep: false            // whether new annotations survive a reload
     };
+
+    // Colour reaches SVG presentation attributes and inline CSS, and size reaches
+    // stroke-width and font-size, so both are validated rather than trusted. An imported
+    // file is untrusted input: anything but an exact 6-digit hex is replaced, which makes
+    // it impossible to smuggle in extra declarations the way a raw string could.
+    function safeColor(value) {
+        return /^#[0-9a-fA-F]{6}$/.test(String(value || '')) ? String(value) : ANNOTATION_PALETTE[0];
+    }
+
+    function safeNumber(value, min, max, fallback) {
+        const n = Number(value);
+        if (!Number.isFinite(n)) return fallback;
+        return Math.min(max, Math.max(min, n));
+    }
+
+    function safePoints(points, minCount) {
+        if (!Array.isArray(points)) return null;
+        const clean = points
+            .filter(p => Array.isArray(p) && p.length === 2
+                && p.every(n => typeof n === 'number' && Number.isFinite(n)))
+            .map(p => [p[0], p[1]]);
+        return clean.length >= minCount ? clean : null;
+    }
+
+    // Returns a fully validated annotation, or null if it cannot be rendered safely.
+    function sanitizeAnnotation(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        if (!ANNOTATION_KINDS.includes(raw.kind)) return null;
+
+        const points = safePoints(raw.points, ANNOTATION_MIN_POINTS[raw.kind]);
+        if (!points) return null;
+
+        // A stray multi-thousand-point pen stroke would stall the render path. Thin it
+        // rather than truncating, which would cut the stroke short instead of keeping
+        // its shape.
+        const capped = raw.kind === 'pen' ? decimate(points, PEN_MAX_POINTS) : points.slice(0, 2);
+
+        return {
+            id: raw.id || newId('n'),
+            kind: raw.kind,
+            points: capped,
+            text: raw.kind === 'text' ? String(raw.text || '').slice(0, 2000) : '',
+            color: safeColor(raw.color),
+            size: raw.kind === 'text'
+                ? safeNumber(raw.size, 10, 72, 16)
+                : safeNumber(raw.size, 1, 20, 3),
+            boxW: safeNumber(raw.boxW, 40, 1200, 220),
+            persist: raw.persist === true,
+            scope: 'page'
+        };
+    }
 
     let idCounter = 0;
     function newId(prefix) {
@@ -71,7 +159,11 @@
         return {
             rules: s.rules.map(r => ({ ...r })),
             areas: s.areas.map(a => ({ ...a })),
-            replacements: s.replacements.map(r => ({ ...r }))
+            replacements: s.replacements.map(r => ({ ...r })),
+            // points is the only nested value in the model, so it needs its own copy or
+            // history snapshots would share the array with live state and undo would be
+            // unable to restore a moved annotation.
+            annotations: (s.annotations || []).map(a => ({ ...a, points: a.points.map(p => [p[0], p[1]]) }))
         };
     }
 
@@ -107,7 +199,7 @@
 
     // Accepts either schema and always returns v2. Existing users keep their data.
     function migrateChanges(raw, scope) {
-        const empty = { rules: [], areas: [], replacements: [] };
+        const empty = emptyState();
         if (!raw || typeof raw !== 'object') return empty;
 
         if (raw.v === SCHEMA_VERSION || Array.isArray(raw.rules)) {
@@ -137,7 +229,8 @@
                         oldText: r.oldText,
                         newText: r.newText,
                         scope: r.scope || scope
-                    }))
+                    })),
+                annotations: (raw.annotations || []).map(sanitizeAnnotation).filter(Boolean)
             };
         }
 
@@ -161,7 +254,9 @@
             })),
             replacements: (raw.replacements || []).map(r => ({
                 id: newId('t'), oldText: r.oldText, newText: r.newText, scope
-            }))
+            })),
+            // v1 predates annotations entirely.
+            annotations: []
         };
     }
 
@@ -170,16 +265,22 @@
             v: SCHEMA_VERSION,
             rules: state.rules.filter(r => r.scope === scope),
             areas: state.areas.filter(a => a.scope === scope),
-            replacements: state.replacements.filter(r => r.scope === scope)
+            replacements: state.replacements.filter(r => r.scope === scope),
+            // Annotations are page-scoped by nature - "put this arrow at these coordinates
+            // on every page of the domain" has no meaning - and only saved once the user
+            // has explicitly asked to keep them.
+            annotations: scope === 'page' ? state.annotations.filter(a => a.persist) : []
         };
     }
 
     function isEmptyPayload(payload) {
-        return !payload.rules.length && !payload.areas.length && !payload.replacements.length;
+        return !payload.rules.length && !payload.areas.length
+            && !payload.replacements.length && !(payload.annotations || []).length;
     }
 
     function ruleCount() {
-        return state.rules.length + state.areas.length + state.replacements.length;
+        return state.rules.length + state.areas.length
+            + state.replacements.length + state.annotations.length;
     }
 
     function escapeSelectorPart(value) {
@@ -361,6 +462,10 @@
         clearRenderedAreas();
         state.areas.forEach(renderArea);
 
+        // After areas, so an annotation can point at something that has been blurred.
+        clearRenderedAnnotations();
+        state.annotations.forEach(renderAnnotation);
+
         syncReplacements();
         updateToolbarStats();
         renderRulesPanel();
@@ -431,7 +536,7 @@
             document.body.removeAttribute("contenteditable");
         }
 
-        document.body.classList.remove("ceb-mode-idle", "ceb-mode-edit", "ceb-mode-blur", "ceb-mode-hide", "ceb-mode-redact", "ceb-mode-draw");
+        document.body.classList.remove("ceb-mode-idle", "ceb-mode-edit", "ceb-mode-blur", "ceb-mode-hide", "ceb-mode-redact", "ceb-mode-draw", "ceb-mode-annotate");
         document.body.classList.add(`ceb-mode-${newModeId}`);
 
         if (newModeId === "idle") {
@@ -453,6 +558,14 @@
             removeDrawOverlay();
         }
 
+        if (newModeId === "annotate") {
+            initAnnotateMode();
+        } else {
+            removeAnnotateOverlay();
+            // Leaving the mode commits whatever is being typed rather than discarding it.
+            finishTextEditing();
+        }
+
         currentModeId = newModeId;
 
         if (!isPickerMode(newModeId)) clearPicker();
@@ -463,6 +576,36 @@
 
     function isPickerMode(mode) {
         return mode === 'blur' || mode === 'hide' || mode === 'redact';
+    }
+
+    // Elements the extension itself drew on the page. The picker must never treat one
+    // as page content: it would both shadow whatever is underneath and persist a rule
+    // whose positional selector counts extension-owned nodes, so it would resolve to
+    // something else entirely on the next load.
+    function isOwnOverlay(target) {
+        if (!target || typeof target.closest !== 'function') return false;
+        return !!target.closest('.ceb-blur-area, .ceb-annotation');
+    }
+
+    // Every message to the service worker goes through here. On an invalidated context
+    // (the extension was reloaded or updated while this tab stayed open) chrome.runtime
+    // is torn down and sendMessage throws *synchronously* — a trailing .catch() is never
+    // even attached, so the exception escapes. Always returns a promise so callers can
+    // attach .finally() for cleanup that must run either way.
+    function sendToBackground(payload) {
+        try {
+            return Promise.resolve(chrome.runtime.sendMessage(payload)).catch(() => {});
+        } catch (e) {
+            return Promise.resolve();
+        }
+    }
+
+    // Switch mode locally and tell the service worker, which owns the badge and the
+    // per-tab record. Applying it locally first keeps the UI responsive even if the
+    // worker has been terminated and has to spin back up.
+    function requestMode(mode) {
+        modeChanged(mode);
+        sendToBackground({ action: 'requestModeChange', mode });
     }
     
     // Draw-to-blur functionality
@@ -609,8 +752,495 @@
     function clearRenderedAreas() {
         document.querySelectorAll('.ceb-blur-area').forEach(el => el.remove());
     }
+
+    // ========== ANNOTATIONS ==========
+    //
+    // Rendered one element per annotation in document coordinates, the same way areas are,
+    // so they scroll with the content instead of floating over the viewport. Shapes are an
+    // inline <svg> sized to the stroke's bounding box; text is a plain div.
+    //
+    // Everything here is built with createElement/setAttribute and textContent rather than
+    // innerHTML, so annotation text - which can come from an imported file - is never
+    // parsed as markup.
+
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    // Stroke is centred on the path, and the arrowhead overhangs the line, so the drawing
+    // surface needs to be bigger than the raw geometry or the edges get clipped.
+    function annotationPadding(a) {
+        return a.kind === 'arrow' ? a.size * 3 + 4 : a.size + 4;
+    }
+
+    function annotationBounds(a) {
+        const xs = a.points.map(p => p[0]);
+        const ys = a.points.map(p => p[1]);
+        if (a.kind === 'text') {
+            return { x: xs[0], y: ys[0], width: a.boxW, height: 0 };
+        }
+        const pad = annotationPadding(a);
+        return {
+            x: Math.min(...xs) - pad,
+            y: Math.min(...ys) - pad,
+            width: (Math.max(...xs) - Math.min(...xs)) + pad * 2,
+            height: (Math.max(...ys) - Math.min(...ys)) + pad * 2
+        };
+    }
+
+    // A mouse-drawn polyline is visibly jagged. Emitting a quadratic curve through the
+    // midpoint of each segment rounds the corners off at almost no cost, which is the
+    // difference between a stroke that looks deliberate and one that looks like a wobble.
+    function penPath(points) {
+        if (points.length < 3) {
+            return points.map((p, i) => `${i ? 'L' : 'M'}${p[0]},${p[1]}`).join(' ');
+        }
+        let d = `M${points[0][0]},${points[0][1]}`;
+        for (let i = 1; i < points.length - 1; i += 1) {
+            const midX = (points[i][0] + points[i + 1][0]) / 2;
+            const midY = (points[i][1] + points[i + 1][1]) / 2;
+            d += ` Q${points[i][0]},${points[i][1]} ${midX},${midY}`;
+        }
+        const last = points[points.length - 1];
+        return `${d} L${last[0]},${last[1]}`;
+    }
+
+    function buildAnnotationShape(a, bounds) {
+        const svg = document.createElementNS(SVG_NS, 'svg');
+        svg.setAttribute('width', String(bounds.width));
+        svg.setAttribute('height', String(bounds.height));
+        svg.setAttribute('viewBox', `0 0 ${bounds.width} ${bounds.height}`);
+        svg.style.cssText = 'display:block;overflow:visible;pointer-events:none;';
+
+        // Local coordinates, relative to the element's own top-left corner.
+        const pts = a.points.map(p => [p[0] - bounds.x, p[1] - bounds.y]);
+        const common = el => {
+            el.setAttribute('stroke', a.color);
+            el.setAttribute('stroke-width', String(a.size));
+            el.setAttribute('fill', 'none');
+            el.setAttribute('stroke-linecap', 'round');
+            el.setAttribute('stroke-linejoin', 'round');
+            return el;
+        };
+
+        if (a.kind === 'ellipse') {
+            const el = common(document.createElementNS(SVG_NS, 'ellipse'));
+            el.setAttribute('cx', String((pts[0][0] + pts[1][0]) / 2));
+            el.setAttribute('cy', String((pts[0][1] + pts[1][1]) / 2));
+            el.setAttribute('rx', String(Math.abs(pts[1][0] - pts[0][0]) / 2));
+            el.setAttribute('ry', String(Math.abs(pts[1][1] - pts[0][1]) / 2));
+            svg.appendChild(el);
+        } else if (a.kind === 'rect') {
+            const el = common(document.createElementNS(SVG_NS, 'rect'));
+            el.setAttribute('x', String(Math.min(pts[0][0], pts[1][0])));
+            el.setAttribute('y', String(Math.min(pts[0][1], pts[1][1])));
+            el.setAttribute('width', String(Math.abs(pts[1][0] - pts[0][0])));
+            el.setAttribute('height', String(Math.abs(pts[1][1] - pts[0][1])));
+            el.setAttribute('rx', '3');
+            svg.appendChild(el);
+        } else if (a.kind === 'pen') {
+            const el = common(document.createElementNS(SVG_NS, 'path'));
+            el.setAttribute('d', penPath(pts));
+            svg.appendChild(el);
+        } else if (a.kind === 'arrow') {
+            const [from, to] = pts;
+            const angle = Math.atan2(to[1] - from[1], to[0] - from[0]);
+            const head = a.size * 3.2;
+
+            // Stop the shaft short of the tip, otherwise it pokes through the arrowhead.
+            const line = common(document.createElementNS(SVG_NS, 'line'));
+            line.setAttribute('x1', String(from[0]));
+            line.setAttribute('y1', String(from[1]));
+            line.setAttribute('x2', String(to[0] - Math.cos(angle) * head * 0.8));
+            line.setAttribute('y2', String(to[1] - Math.sin(angle) * head * 0.8));
+            svg.appendChild(line);
+
+            const wing = 0.42;
+            const tri = document.createElementNS(SVG_NS, 'polygon');
+            tri.setAttribute('points', [
+                `${to[0]},${to[1]}`,
+                `${to[0] - Math.cos(angle - wing) * head},${to[1] - Math.sin(angle - wing) * head}`,
+                `${to[0] - Math.cos(angle + wing) * head},${to[1] - Math.sin(angle + wing) * head}`
+            ].join(' '));
+            tri.setAttribute('fill', a.color);
+            svg.appendChild(tri);
+        }
+        return svg;
+    }
+
+    function renderAnnotation(a) {
+        const bounds = annotationBounds(a);
+        const el = document.createElement('div');
+        el.className = 'ceb-annotation';
+        el.dataset.cebNoteId = a.id;
+        el.dataset.cebNoteKind = a.kind;
+
+        if (a.kind === 'text') {
+            el.textContent = a.text;
+            el.style.cssText = `
+                position: absolute;
+                left: ${bounds.x}px;
+                top: ${bounds.y}px;
+                width: ${a.boxW}px;
+                color: ${a.color};
+                font: 600 ${a.size}px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                white-space: pre-wrap;
+                overflow-wrap: break-word;
+                z-index: 2147483641;
+                cursor: text;
+                padding: 2px 4px;
+                text-shadow: 0 1px 2px rgba(255,255,255,.85), 0 -1px 2px rgba(255,255,255,.85),
+                             1px 0 2px rgba(255,255,255,.85), -1px 0 2px rgba(255,255,255,.85);
+            `;
+            el.title = 'Click to edit';
+            el.addEventListener('click', function (event) {
+                event.stopPropagation();
+                event.preventDefault();
+                editTextAnnotation(a.id);
+            });
+        } else {
+            el.style.cssText = `
+                position: absolute;
+                left: ${bounds.x}px;
+                top: ${bounds.y}px;
+                width: ${bounds.width}px;
+                height: ${bounds.height}px;
+                z-index: 2147483641;
+                cursor: pointer;
+            `;
+            el.title = 'Click to remove';
+            el.appendChild(buildAnnotationShape(a, bounds));
+            el.addEventListener('click', function (event) {
+                event.stopPropagation();
+                event.preventDefault();
+                removeAnnotation(a.id);
+            });
+        }
+
+        document.body.appendChild(el);
+        return el;
+    }
+
+    function removeAnnotation(id) {
+        state.annotations = state.annotations.filter(a => a.id !== id);
+        commit('Annotation removed');
+    }
+
+    function clearRenderedAnnotations() {
+        document.querySelectorAll('.ceb-annotation').forEach(el => el.remove());
+    }
+
+    // ---------- Annotate mode ----------
+    //
+    // Shapes are dragged out with a live preview; the pen samples the pointer; text is
+    // placed with a single click and typed into a contenteditable box straight away, so
+    // the common case is click-type-click-away with no intermediate dialog.
+
+    let annotateOverlay = null;
+    let noteDrawing = false;
+    let notePreview = null;
+    let noteStart = null;        // document coords of the gesture's origin
+    let notePoints = [];         // pen only
+    let noteMinGap = PEN_MIN_GAP; // grows as a stroke gets long, to bound its cost
+    let textEditor = null;       // live contenteditable box, if any
+
+    function isAnnotateTool(kind) {
+        return ANNOTATION_KINDS.includes(kind);
+    }
+
+    function activeTool() {
+        return isAnnotateTool(settings.annotateTool) ? settings.annotateTool : 'arrow';
+    }
+
+    // Pointer position in document space, so a stroke started near the bottom of a long
+    // page keeps its place once the page is scrolled.
+    function docPoint(e) {
+        return [e.clientX + window.scrollX, e.clientY + window.scrollY];
+    }
+
+    function initAnnotateMode() {
+        if (annotateOverlay || !isTopFrame) return;
+
+        annotateOverlay = document.createElement('div');
+        annotateOverlay.id = 'ceb-annotate-overlay';
+        annotateOverlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2147483646;
+            cursor: crosshair;
+        `;
+        document.body.appendChild(annotateOverlay);
+
+        annotateOverlay.addEventListener('mousedown', startNote);
+        annotateOverlay.addEventListener('mousemove', updateNote);
+        annotateOverlay.addEventListener('mouseup', endNote);
+        // A drag that ends outside the window would otherwise leave a stuck preview.
+        annotateOverlay.addEventListener('mouseleave', endNote);
+    }
+
+    function removeAnnotateOverlay() {
+        if (annotateOverlay) {
+            annotateOverlay.remove();
+            annotateOverlay = null;
+        }
+        clearNotePreview();
+        noteDrawing = false;
+    }
+
+    function clearNotePreview() {
+        if (notePreview) {
+            notePreview.remove();
+            notePreview = null;
+        }
+    }
+
+    // The preview is a real annotation rendered into a throwaway element, so what is on
+    // screen mid-drag is exactly what gets committed.
+    function drawNotePreview(points) {
+        clearNotePreview();
+        const draft = {
+            id: 'preview', kind: activeTool(), points,
+            text: '', color: safeColor(settings.annotateColor),
+            size: 3, boxW: 220, persist: false, scope: 'page'
+        };
+        const bounds = annotationBounds(draft);
+        notePreview = document.createElement('div');
+        notePreview.id = 'ceb-note-preview';
+        notePreview.style.cssText = `
+            position: absolute;
+            left: ${bounds.x}px;
+            top: ${bounds.y}px;
+            width: ${bounds.width}px;
+            height: ${bounds.height}px;
+            z-index: 2147483645;
+            pointer-events: none;
+            opacity: .85;
+        `;
+        notePreview.appendChild(buildAnnotationShape(draft, bounds));
+        document.body.appendChild(notePreview);
+    }
+
+    function startNote(e) {
+        if (e.button !== 0) return;
+        // Without this the browser's default mousedown handling moves focus to the body:
+        // that both selects page text while dragging a shape and, for a text note, blurs
+        // the editor we are about to focus, which discards it as empty before the user
+        // can type a character.
+        e.preventDefault();
+
+
+        // Text is placed, not dragged.
+        if (activeTool() === 'text') {
+            createTextAnnotation(docPoint(e));
+            return;
+        }
+
+        noteDrawing = true;
+        noteStart = docPoint(e);
+        notePoints = [noteStart];
+        noteMinGap = PEN_MIN_GAP;
+    }
+
+    function updateNote(e) {
+        if (!noteDrawing) return;
+        const point = docPoint(e);
+
+        if (activeTool() === 'pen') {
+            const last = notePoints[notePoints.length - 1];
+            // Skip near-duplicate samples: they add nothing visually but bloat what gets
+            // stored and slow the smoothing pass down.
+            if (Math.hypot(point[0] - last[0], point[1] - last[1]) < noteMinGap) return;
+            notePoints.push(point);
+            // A long stroke has to be bounded, but dropping the oldest samples would make
+            // the beginning of the user's own line disappear as they keep drawing. Halve
+            // the resolution instead: the whole stroke survives, just less finely.
+            // Thin to half the cap, not to the cap, so the buffer has room to refill
+            // before thinning again — otherwise every subsequent sample would trigger
+            // another pass and the minimum gap would run away exponentially.
+            if (notePoints.length > PEN_MAX_POINTS) {
+                notePoints = decimate(notePoints, PEN_MAX_POINTS / 2);
+                noteMinGap *= 2;
+            }
+            drawNotePreview(notePoints);
+        } else {
+            drawNotePreview([noteStart, point]);
+        }
+    }
+
+    function endNote(e) {
+        if (!noteDrawing) return;
+        noteDrawing = false;
+        clearNotePreview();
+
+        const tool = activeTool();
+        const points = tool === 'pen' ? notePoints.slice() : [noteStart, docPoint(e)];
+
+        // Ignore a stray click that was not really a drag.
+        const spanX = Math.max(...points.map(p => p[0])) - Math.min(...points.map(p => p[0]));
+        const spanY = Math.max(...points.map(p => p[1])) - Math.min(...points.map(p => p[1]));
+        if (Math.hypot(spanX, spanY) < 8) return;
+
+        pushAnnotation({ kind: tool, points });
+        commit(tool === 'arrow' ? 'Arrow added'
+            : tool === 'ellipse' ? 'Circle added'
+            : tool === 'rect' ? 'Box added' : 'Drawing added');
+    }
+
+    function pushAnnotation(partial) {
+        const note = sanitizeAnnotation({
+            kind: partial.kind,
+            points: partial.points,
+            text: partial.text || '',
+            color: settings.annotateColor,
+            size: partial.kind === 'text' ? 16 : 3,
+            boxW: 220,
+            persist: settings.annotateKeep === true
+        });
+        if (note) state.annotations.push(note);
+        return note;
+    }
+
+    // ---------- Text annotations ----------
+
+    function createTextAnnotation(point) {
+        const note = pushAnnotation({ kind: 'text', points: [point], text: '' });
+        if (!note) return;
+        renderState();
+        openTextEditor(note.id);
+    }
+
+    function editTextAnnotation(id) {
+        openTextEditor(id);
+    }
+
+    function openTextEditor(id) {
+        finishTextEditing();
+        const note = state.annotations.find(a => a.id === id);
+        if (!note) return;
+
+        // Hide the rendered copy so the editor sits exactly where the text will land.
+        const rendered = Array.from(document.querySelectorAll('.ceb-annotation'))
+            .find(el => el.dataset.cebNoteId === id);
+        if (rendered) rendered.style.visibility = 'hidden';
+
+        const box = document.createElement('div');
+        box.id = 'ceb-text-editor';
+        box.contentEditable = 'true';
+        box.spellcheck = false;
+        box.textContent = note.text;
+        box.dataset.cebNoteId = id;
+        box.style.cssText = `
+            position: absolute;
+            left: ${note.points[0][0]}px;
+            top: ${note.points[0][1]}px;
+            width: ${note.boxW}px;
+            min-height: ${note.size}px;
+            color: ${note.color};
+            font: 600 ${note.size}px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            white-space: pre-wrap;
+            overflow-wrap: break-word;
+            z-index: 2147483647;
+            padding: 2px 4px;
+            outline: 2px dashed ${note.color};
+            outline-offset: 1px;
+            background: rgba(255,255,255,.9);
+            cursor: text;
+        `;
+        document.body.appendChild(box);
+        textEditor = box;
+
+        box.addEventListener('keydown', function (event) {
+            event.stopPropagation();
+            // Enter commits, Shift+Enter makes a new line - the usual caption behaviour.
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                finishTextEditing();
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                finishTextEditing();
+            }
+        });
+        box.addEventListener('blur', () => finishTextEditing());
+        // Clicks inside the editor must not reach the overlay and start a new annotation.
+        box.addEventListener('mousedown', event => event.stopPropagation());
+        box.addEventListener('click', event => event.stopPropagation());
+
+        box.focus();
+        const range = document.createRange();
+        range.selectNodeContents(box);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    // Commits the editor's contents. An annotation left empty is removed rather than
+    // persisted as an invisible click target.
+    function finishTextEditing() {
+        if (!textEditor) return;
+        const box = textEditor;
+        textEditor = null;
+
+        const id = box.dataset.cebNoteId;
+        const value = (box.textContent || '').trim().slice(0, 2000);
+        box.remove();
+
+        const note = state.annotations.find(a => a.id === id);
+        if (!note) return;
+
+        if (!value) {
+            const wasNew = note.text === '';
+            state.annotations = state.annotations.filter(a => a.id !== id);
+            // A note that was created and left empty never made it into history, so
+            // committing here would push a snapshot identical to the previous one and
+            // silently burn the user's next undo. Just drop it.
+            if (wasNew) {
+                renderState();
+                return;
+            }
+            commit('Note removed');
+            return;
+        }
+        if (note.text === value) {
+            renderState();
+            return;
+        }
+        note.text = value;
+        commit('Note added');
+    }
     
     // Screenshot download
+    // The extension's own UI is part of the page, so a naive capture includes the
+    // toolbar, the annotate overlay and any live editing chrome. Hide all of it,
+    // wait for a paint, then capture.
+    const CAPTURE_HIDE = [
+        '#ceb-toolbar', '#ceb-mode-badge', '#ceb-toast',
+        '#ceb-draw-overlay', '#ceb-annotate-overlay', '#ceb-note-preview',
+        '#ceb-text-editor', '#ceb-picker-outline', '#ceb-picker-hud', '#ceb-panel'
+    ];
+
+    function captureScreenshot() {
+        finishTextEditing();
+        const hidden = [];
+        CAPTURE_HIDE.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                if (el.style.visibility === 'hidden') return;
+                hidden.push([el, el.style.visibility]);
+                el.style.visibility = 'hidden';
+            });
+        });
+        const restore = () => hidden.forEach(([el, prev]) => { el.style.visibility = prev; });
+        // Two frames: one to apply the style, one to be sure it has painted before the
+        // compositor snapshot is taken.
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+            // restore must run even when the send fails, or the whole UI stays
+            // invisible until the page is reloaded. sendToBackground never throws
+            // and always returns a promise, so .finally() is guaranteed to fire.
+            sendToBackground({ action: 'takeScreenshot' }).finally(restore);
+        }));
+    }
+
     function downloadScreenshot(dataUrl) {
         const link = document.createElement('a');
         link.download = `screenshot-${Date.now()}.png`;
@@ -801,7 +1431,7 @@
         // would wipe every site rule for the origin — including ones another tab just
         // made. Omit the key entirely and the background leaves it untouched.
         if (siteScopeLoaded) payload.site = serializeScope('site');
-        chrome.runtime.sendMessage(payload).catch(() => {});
+        sendToBackground(payload);
     }
 
     // ========== SPA ROUTE CHANGES ==========
@@ -827,10 +1457,12 @@
         flushChanges(previous);
 
         // Page-scoped rules belong to the route that created them; site rules carry over.
+        // Annotations are inherently page-scoped, so they go with the outgoing route.
         state = {
             rules: state.rules.filter(r => r.scope === 'site'),
             areas: state.areas.filter(a => a.scope === 'site'),
-            replacements: state.replacements.filter(r => r.scope === 'site')
+            replacements: state.replacements.filter(r => r.scope === 'site'),
+            annotations: []
         };
         renderState();
         resetHistory();
@@ -916,6 +1548,9 @@
         incoming.areas.forEach(a => { if (!areaIds.has(a.id)) target.areas.push(a); });
         const repIds = new Set(target.replacements.map(r => r.id));
         incoming.replacements.forEach(r => { if (!repIds.has(r.id)) target.replacements.push(r); });
+        if (!target.annotations) target.annotations = [];
+        const noteIds = new Set(target.annotations.map(a => a.id));
+        (incoming.annotations || []).forEach(a => { if (!noteIds.has(a.id)) target.annotations.push(a); });
     }
 
     // The content script restores its own state rather than waiting to be handed it,
@@ -925,6 +1560,7 @@
         try {
             const stored = await chrome.storage.local.get([
                 'persistEnabled', 'uiMode', 'defaultScope', 'blurStrength', 'drawKind',
+                'annotateTool', 'annotateColor', 'annotateKeep',
                 storageKeyForUrl(window.location.href),
                 siteKeyForUrl(window.location.href)
             ]);
@@ -933,6 +1569,10 @@
             settings.defaultScope = stored.defaultScope === 'site' ? 'site' : 'page';
             settings.blurStrength = typeof stored.blurStrength === 'number' ? stored.blurStrength : 1;
             settings.drawKind = stored.drawKind === 'redact' ? 'redact' : 'blur';
+            settings.annotateTool = ANNOTATION_KINDS.includes(stored.annotateTool)
+                ? stored.annotateTool : 'arrow';
+            settings.annotateColor = safeColor(stored.annotateColor);
+            settings.annotateKeep = stored.annotateKeep === true;
 
             if (stored.persistEnabled === false) return;
             // Opaque-origin frames share a global key, so they neither read nor write.
@@ -974,7 +1614,9 @@
         const pageOnly = s => ({
             rules: s.rules.filter(r => r.scope !== 'site'),
             areas: s.areas.filter(a => a.scope !== 'site'),
-            replacements: s.replacements.filter(r => r.scope !== 'site')
+            replacements: s.replacements.filter(r => r.scope !== 'site'),
+            // Never site-scoped, so a change arriving from another tab leaves them alone.
+            annotations: (s.annotations || []).map(a => ({ ...a, points: a.points.map(p => [p[0], p[1]]) }))
         });
         state = pageOnly(state);
         mergeInto(state, cloneState(siteData));
@@ -994,7 +1636,11 @@
         return JSON.stringify({
             r: d.rules.map(x => `${x.id}|${x.kind}|${x.selector}|${x.level}`).sort(),
             a: d.areas.map(x => `${x.id}|${x.kind}|${x.x}|${x.y}|${x.width}|${x.height}`).sort(),
-            t: d.replacements.map(x => `${x.id}|${x.oldText}|${x.newText}`).sort()
+            t: d.replacements.map(x => `${x.id}|${x.oldText}|${x.newText}`).sort(),
+            // Always empty for the site scope today, but included so that making
+            // annotations site-scopable later cannot silently reintroduce the write-back
+            // loop this signature exists to break.
+            n: (d.annotations || []).map(x => `${x.id}|${x.kind}|${x.color}`).sort()
         });
     }
 
@@ -1078,7 +1724,8 @@
         state = {
             rules: state.rules.filter(r => r.scope === 'site'),
             areas: state.areas.filter(a => a.scope === 'site'),
-            replacements: state.replacements.filter(r => r.scope === 'site')
+            replacements: state.replacements.filter(r => r.scope === 'site'),
+            annotations: []
         };
         commit(keptSite
             ? `Page cleared — ${keptSite} site-wide rule${keptSite === 1 ? '' : 's'} kept`
@@ -1233,7 +1880,7 @@
 
         const target = event.target;
         if (target === document.body || target === document.documentElement) return;
-        if (target.classList && target.classList.contains('ceb-blur-area')) return;
+        if (isOwnOverlay(target)) return;
 
         setPickerBase(target);
     });
@@ -1302,7 +1949,7 @@
 
     function exitMode() {
         modeChanged('idle');
-        chrome.runtime.sendMessage({ action: 'requestModeChange', mode: 'idle' }).catch(() => {});
+        sendToBackground({ action: 'requestModeChange', mode: 'idle' });
     }
 
     document.addEventListener("keydown", function(event) {
@@ -1395,8 +2042,9 @@
             // Skip if clicking on toolbar
             if (isToolbarElement(event.target)) return;
 
-            // Let a drawn area handle its own click so it can be removed
-            if (event.target.classList && event.target.classList.contains('ceb-blur-area')) return;
+            // Let a drawn area or an annotation handle its own click so it can be
+            // removed or edited.
+            if (isOwnOverlay(event.target)) return;
             
             // Skip if in draw mode (handled by overlay)
             if (currentModeId === "draw") return;
@@ -1447,6 +2095,7 @@
         [...pageData.rules, ...siteData.rules].forEach(r => { r.id = newId('r'); });
         [...pageData.areas, ...siteData.areas].forEach(a => { a.id = newId('a'); });
         [...pageData.replacements, ...siteData.replacements].forEach(r => { r.id = newId('t'); });
+        [...pageData.annotations, ...siteData.annotations].forEach(a => { a.id = newId('n'); });
 
         mergeIntoState(pageData);
         mergeIntoState(siteData);
@@ -1585,6 +2234,50 @@
                         </svg>
                         <span class="ceb-tb-label">Redact</span>
                         <span class="ceb-tb-hint">Irreversible solid block</span>
+                    </button>
+                    <button class="ceb-tb-btn ceb-tb-btn-wide" data-mode="annotate"
+                            title="Draw arrows and circles, or add a note">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 20 L20 4"/>
+                            <path d="M14 4h6v6"/>
+                        </svg>
+                        <span class="ceb-tb-label">Annotate</span>
+                        <span class="ceb-tb-hint">Arrows, circles and notes</span>
+                    </button>
+                </div>
+
+                <div class="ceb-tb-section" id="ceb-annotate-tools" hidden>
+                    <div class="ceb-tb-section-label">Annotation</div>
+                    <div class="ceb-tb-row ceb-note-tools">
+                        <button class="ceb-note-tool" data-note-tool="arrow" title="Arrow">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 20 L20 4"/><path d="M14 4h6v6"/>
+                            </svg>
+                        </button>
+                        <button class="ceb-note-tool" data-note-tool="ellipse" title="Circle">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <ellipse cx="12" cy="12" rx="9" ry="7"/>
+                            </svg>
+                        </button>
+                        <button class="ceb-note-tool" data-note-tool="text" title="Note text">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 7V5h14v2"/><path d="M12 5v14"/><path d="M9 19h6"/>
+                            </svg>
+                        </button>
+                        <button class="ceb-note-tool ceb-pro-only" data-note-tool="rect" title="Box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="4" y="6" width="16" height="12" rx="2"/>
+                            </svg>
+                        </button>
+                        <button class="ceb-note-tool ceb-pro-only" data-note-tool="pen" title="Freehand">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 18c4-10 8 6 12-2 2-4 4-2 6-1"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="ceb-tb-row ceb-note-colors" id="ceb-note-colors"></div>
+                    <button class="ceb-tb-mini ceb-note-keep" id="ceb-btn-note-keep">
+                        Keep after reload
                     </button>
                 </div>
 
@@ -1792,6 +2485,46 @@
             .ceb-tb-btn.active[data-mode="hide"] { background: #fce8e6; border-color: var(--ceb-accent-hide); }
             .ceb-tb-btn.active[data-mode="hide"] svg { stroke: var(--ceb-accent-hide); }
             .ceb-tb-btn.active[data-mode="hide"] .ceb-tb-label { color: var(--ceb-accent-hide); }
+            .ceb-tb-btn.active[data-mode="annotate"] { background: #ffe4e6; border-color: #e11d48; }
+            .ceb-tb-btn.active[data-mode="annotate"] svg { stroke: #e11d48; }
+            .ceb-tb-btn.active[data-mode="annotate"] .ceb-tb-label { color: #e11d48; }
+            #ceb-toolbar[data-theme="dark"] .ceb-tb-btn.active[data-mode="annotate"] { background: rgba(225,29,72,.22); }
+
+            /* Flex, not the shared 3/4-column grid: five tools would otherwise wrap
+               and leave one orphan on a second row. */
+            .ceb-note-tools { display: flex; gap: 4px; }
+            .ceb-note-tool {
+                flex: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 7px 0;
+                border: 1px solid var(--ceb-border);
+                border-radius: 7px;
+                background: var(--ceb-surface);
+                color: var(--ceb-text-dim);
+                cursor: pointer;
+            }
+            .ceb-note-tool svg { width: 17px; height: 17px; }
+            .ceb-note-tool:hover { border-color: var(--ceb-text-dim); color: var(--ceb-text); }
+            .ceb-note-tool.active { background: #ffe4e6; border-color: #e11d48; color: #e11d48; }
+            #ceb-toolbar[data-theme="dark"] .ceb-note-tool.active { background: rgba(225,29,72,.22); }
+
+            .ceb-note-colors { display: flex; gap: 8px; margin-top: 8px; }
+            .ceb-note-swatch {
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                border: 2px solid transparent;
+                box-shadow: 0 0 0 1px var(--ceb-border) inset;
+                cursor: pointer;
+                padding: 0;
+            }
+            .ceb-note-swatch.active { border-color: var(--ceb-text); }
+
+            .ceb-note-keep { width: 100%; margin-top: 6px; text-align: center; }
+            .ceb-note-keep.active { background: #ffe4e6; border-color: #e11d48; color: #e11d48; }
+            #ceb-toolbar[data-theme="dark"] .ceb-note-keep.active { background: rgba(225,29,72,.22); }
             #ceb-toolbar[data-theme="dark"] .ceb-tb-btn.active { background: rgba(26,115,232,0.2); }
             #ceb-toolbar[data-theme="dark"] .ceb-tb-btn.active[data-mode="blur"],
             #ceb-toolbar[data-theme="dark"] .ceb-tb-btn.active[data-mode="draw"] { background: rgba(234,134,0,0.2); }
@@ -2047,9 +2780,7 @@
         toolbar.querySelectorAll('.ceb-tb-btn[data-mode]').forEach(btn => {
             on(btn, 'click', () => {
                 const mode = btn.dataset.mode;
-                const newMode = (currentModeId === mode) ? 'idle' : mode;
-                modeChanged(newMode);
-                chrome.runtime.sendMessage({ action: 'requestModeChange', mode: newMode }).catch(() => {});
+                requestMode((currentModeId === mode) ? 'idle' : mode);
             });
         });
         
@@ -2057,12 +2788,13 @@
         on(toolbar.querySelector('#ceb-btn-undo'), 'click', undo);
         on(toolbar.querySelector('#ceb-btn-redo'), 'click', redo);
         on(toolbar.querySelector('#ceb-btn-screenshot'), 'click', () => {
-            chrome.runtime.sendMessage({ action: 'takeScreenshot' }).catch(() => {});
+            captureScreenshot();
         });
         on(toolbar.querySelector('#ceb-btn-reset'), 'click', () => {
             const pageScoped = state.rules.filter(r => r.scope !== 'site').length
                 + state.areas.filter(a => a.scope !== 'site').length
-                + state.replacements.filter(r => r.scope !== 'site').length;
+                + state.replacements.filter(r => r.scope !== 'site').length
+                + state.annotations.length;
             if (!pageScoped) {
                 showToast(ruleCount() ? 'Only site-wide rules here — clear them in Rules' : 'Nothing to clear');
                 return;
@@ -2071,7 +2803,7 @@
             clearAllRules();
         });
         on(toolbar.querySelector('#ceb-btn-restore'), 'click', () => {
-            chrome.runtime.sendMessage({ action: 'restoreChanges' }).catch(() => {});
+            sendToBackground({ action: 'restoreChanges' });
         });
 
         // Scope + draw-kind segmented controls
@@ -2091,6 +2823,53 @@
                 chrome.storage.local.set({ drawKind: settings.drawKind });
                 updateToolbarState();
             });
+        });
+
+        // Annotation tools
+        toolbar.querySelectorAll('.ceb-note-tool').forEach(btn => {
+            on(btn, 'click', () => {
+                settings.annotateTool = btn.dataset.noteTool;
+                chrome.storage.local.set({ annotateTool: settings.annotateTool });
+                // Picking a tool is also how you enter the mode, so there is no need to
+                // press Annotate first.
+                if (currentModeId !== 'annotate') requestMode('annotate');
+                updateToolbarState();
+            });
+        });
+
+        const colorRow = toolbar.querySelector('#ceb-note-colors');
+        if (colorRow) {
+            ANNOTATION_PALETTE.forEach(hex => {
+                const swatch = document.createElement('button');
+                swatch.className = 'ceb-note-swatch';
+                swatch.dataset.noteColor = hex;
+                swatch.style.background = hex;
+                swatch.title = hex;
+                on(swatch, 'click', () => {
+                    settings.annotateColor = safeColor(hex);
+                    chrome.storage.local.set({ annotateColor: settings.annotateColor });
+                    updateToolbarState();
+                });
+                colorRow.appendChild(swatch);
+            });
+        }
+
+        // One page-level decision rather than a flag per mark: the user is deciding
+        // whether this page's annotations are a keepsake or scaffolding for one screenshot.
+        on(toolbar.querySelector('#ceb-btn-note-keep'), 'click', () => {
+            settings.annotateKeep = !settings.annotateKeep;
+            chrome.storage.local.set({ annotateKeep: settings.annotateKeep });
+            state.annotations.forEach(a => { a.persist = settings.annotateKeep; });
+            updateToolbarState();
+            if (state.annotations.length) {
+                commit(settings.annotateKeep
+                    ? 'Annotations will be kept on this page'
+                    : 'Annotations are session-only again');
+            } else {
+                showToast(settings.annotateKeep
+                    ? 'New annotations will be kept'
+                    : 'New annotations are session-only');
+            }
         });
 
         // Simple / Pro
@@ -2138,8 +2917,13 @@
         // Leaving Pro while in a Pro-only mode would strand the user in a mode with no
         // visible way back out.
         if (settings.uiMode === 'simple' && currentModeId === 'redact') {
-            modeChanged('idle');
-            chrome.runtime.sendMessage({ action: 'requestModeChange', mode: 'idle' }).catch(() => {});
+            requestMode('idle');
+        }
+        // Same for a Pro-only annotation tool: its button is hidden in Simple, so the
+        // active tool would be one the user can neither see nor change.
+        if (settings.uiMode === 'simple' && ['rect', 'pen'].includes(settings.annotateTool)) {
+            settings.annotateTool = 'arrow';
+            chrome.storage.local.set({ annotateTool: 'arrow' });
         }
         updateToolbarState();
         showToast(settings.uiMode === 'pro' ? 'Pro tools shown' : 'Simple mode');
@@ -2163,6 +2947,13 @@
             id: r.id, kind: 'text', scope: r.scope, type: 'replacement',
             label: `"${r.oldText}" → "${r.newText}"`,
             title: 'Text replacement'
+        }));
+        state.annotations.forEach(a => entries.push({
+            id: a.id, kind: 'annotation', scope: 'page', type: 'annotation',
+            label: a.kind === 'text'
+                ? `note: "${a.text.slice(0, 30)}${a.text.length > 30 ? '…' : ''}"`
+                : `${a.kind}${a.persist ? '' : ' (session only)'}`,
+            title: a.persist ? 'Annotation — kept after reload' : 'Annotation — not saved'
         }));
         return entries;
     }
@@ -2266,6 +3057,12 @@
     }
 
     function toggleRuleScope(entry) {
+        // Annotations are positional, so "show this arrow on every page of the domain"
+        // has no sensible meaning.
+        if (entry.type === 'annotation') {
+            showToast('Annotations apply to this page only');
+            return;
+        }
         const next = entry.scope === 'site' ? 'page' : 'site';
         const collection = entry.type === 'rule' ? state.rules
             : entry.type === 'area' ? state.areas : state.replacements;
@@ -2279,6 +3076,7 @@
         clearRuleHighlight();
         if (entry.type === 'rule') state.rules = state.rules.filter(r => r.id !== entry.id);
         else if (entry.type === 'area') state.areas = state.areas.filter(a => a.id !== entry.id);
+        else if (entry.type === 'annotation') state.annotations = state.annotations.filter(a => a.id !== entry.id);
         else state.replacements = state.replacements.filter(r => r.id !== entry.id);
         commit('Rule deleted');
     }
@@ -2292,7 +3090,9 @@
             ['Enter', 'Apply to the selected element'],
             ['Alt+R', 'Replace selected text (Edit mode)'],
             ['Alt+1/2/3', 'Edit / Blur / Hide mode'],
-            ['Alt+Shift+E', 'Toggle this toolbar']
+            ['Alt+Shift+E', 'Toggle this toolbar'],
+            ['Enter', 'Commit a text note (Shift+Enter for a new line)'],
+            ['Esc', 'Close the note editor']
         ];
         showPanel('Keyboard shortcuts', rows);
     }
@@ -2395,6 +3195,23 @@
         toolbar.querySelectorAll('#ceb-drawkind-seg .ceb-seg-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.drawkind === settings.drawKind);
         });
+
+        // The annotation tools take up real space, so they only appear while the mode is
+        // active rather than sitting there permanently.
+        const noteTools = toolbar.querySelector('#ceb-annotate-tools');
+        if (noteTools) noteTools.hidden = currentModeId !== 'annotate';
+
+        toolbar.querySelectorAll('.ceb-note-tool').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.noteTool === settings.annotateTool);
+        });
+        toolbar.querySelectorAll('.ceb-note-swatch').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.noteColor === settings.annotateColor);
+        });
+        const keepBtn = toolbar.querySelector('#ceb-btn-note-keep');
+        if (keepBtn) {
+            keepBtn.classList.toggle('active', settings.annotateKeep);
+            keepBtn.textContent = settings.annotateKeep ? 'Kept after reload' : 'Keep after reload';
+        }
         toolbar.querySelectorAll('#ceb-ui-seg .ceb-seg-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.ui === settings.uiMode);
         });

@@ -106,6 +106,45 @@ check('flushChanges omits an unloaded site scope', () => {
   return 'guarded by siteScopeLoaded';
 });
 
+check('both emptiness checks agree on what counts as content', () => {
+  const page = fs.readFileSync(path.join(root, 'page-code.js'), 'utf8');
+  const bg = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
+  const bodyOf = (src, marker) => {
+    const start = src.indexOf(marker);
+    if (start === -1) throw new Error(`${marker} not found`);
+    return src.slice(start, src.indexOf('\n}', start) + 2 || undefined).slice(0, 900);
+  };
+  // These two predicates decide the same question in different files: page-code uses
+  // it to skip a write, background uses it to *delete the key*. When a new collection
+  // is added to one and not the other, the payload is written by one side and erased
+  // by the other. That is exactly how kept annotations were being lost.
+  const collections = ['rules', 'areas', 'replacements', 'annotations'];
+  const pageBody = bodyOf(page, 'function isEmptyPayload');
+  const bgBody = bodyOf(bg, 'function hasChanges');
+  const missing = collections.filter(c => !pageBody.includes(c) || !bgBody.includes(c));
+  if (missing.length) {
+    throw new Error(`isEmptyPayload/hasChanges disagree about: ${missing.join(', ')}`);
+  }
+  return `${collections.length} collections in both`;
+});
+
+check('every background message goes through the guarded helper', () => {
+  const src = fs.readFileSync(path.join(root, 'page-code.js'), 'utf8');
+  // On an invalidated context sendMessage throws *synchronously*, so a trailing
+  // .catch() never attaches and the exception escapes. That is how a screenshot
+  // once left the entire UI hidden: its restore was attached via .finally and
+  // never ran. sendToBackground() is the single place that swallows it.
+  const raw = src.split('\n')
+    .map((line, i) => [i + 1, line])
+    .filter(([, line]) => /chrome\.runtime\.sendMessage\s*\(/.test(line)
+      && !/return Promise\.resolve\(chrome\.runtime\.sendMessage/.test(line));
+  if (raw.length) {
+    throw new Error(`unguarded sendMessage at line(s) ${raw.map(([n]) => n).join(', ')} — use sendToBackground()`);
+  }
+  if (!/function sendToBackground/.test(src)) throw new Error('sendToBackground helper missing');
+  return 'all call sites use sendToBackground()';
+});
+
 ok.forEach(l => console.log(`PASS  ${l}`));
 problems.forEach(l => console.error(`FAIL  ${l}`));
 console.log(`\n${ok.length}/${ok.length + problems.length} checks passed`);

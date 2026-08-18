@@ -11,7 +11,8 @@
     "build:all": "node scripts/build-all.mjs",
     "preflight": "node scripts/preflight.mjs",
     "verify:packages": "node scripts/verify-packages.mjs",
-    "publish:stores": "node scripts/publish.mjs"
+    "publish:stores": "node scripts/publish.mjs",
+    "auth:chrome": "node scripts/oauth-token.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"

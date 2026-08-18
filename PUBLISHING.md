@@ -30,22 +30,42 @@ Add these under **Settings → Secrets and variables → Actions**.
 
 | Secret | Where it comes from |
 |---|---|
-| `CHROME_EXTENSION_ID` | `adgnogkndmhcblbonkhgfbbngeghpboh` (the id in the store URL) |
-| `CHROME_PUBLISHER_ID` | Developer Dashboard → Account → Publisher ID |
+| `CHROME_EXTENSION_ID` | `adgnogkndmhcblbonkhgfbbngeghpboh` (the id in the store URL) — ✅ set |
+| `CHROME_PUBLISHER_ID` | Developer Dashboard → Account → Publisher ID — ✅ set |
 | `CHROME_CLIENT_ID` | Google Cloud Console → APIs & Services → Credentials |
 | `CHROME_CLIENT_SECRET` | Same credential |
-| `CHROME_REFRESH_TOKEN` | See below |
+| `CHROME_REFRESH_TOKEN` | Minted by `npm run auth:chrome` |
 
-Enable the **Chrome Web Store API** in Google Cloud Console, then create an OAuth
-client of type **Web application** with
-`https://developers.google.com/oauthplayground` as an authorised redirect URI.
-Mint a refresh token with the
-[OAuth Playground](https://developers.google.com/oauthplayground) using the scope
-`https://www.googleapis.com/auth/chromewebstore`, or with:
+In [Google Cloud Console](https://console.cloud.google.com):
+
+1. **APIs & Services → Library** → enable **Chrome Web Store API**.
+2. **Credentials → Create credentials → OAuth client ID → Web application.**
+3. Under **Authorised redirect URIs** add exactly `http://localhost:8976`.
+4. **OAuth consent screen → publishing status → In production.** See the warning
+   below; this step is not optional.
+
+Then mint the token and store all three secrets in one step:
 
 ```bash
-npx chrome-webstore-upload-keys
+npm run auth:chrome
 ```
+
+This opens your real browser for the consent click, receives the callback on
+`localhost`, exchanges it, and pipes the values straight into `gh secret set`.
+Nothing is printed, so no credential lands in your scrollback or shell history.
+Add `--print` if you would rather handle the values yourself, or `--no-browser`
+when running over SSH.
+
+> [!WARNING]
+> **Leave the consent screen in "Testing" and releases break after 7 days.**
+> Google issues a refresh token that **expires in 7 days** for any external
+> OAuth app in "Testing" status, unless the only scopes are name/email/profile —
+> which excludes `chromewebstore`. The token works today, so the setup looks
+> finished, and then a release fails a week later with a bare `invalid_grant`.
+> Set the publishing status to **In production**. An "unverified app" warning on
+> the consent screen is expected for a private app: choose **Advanced →
+> Continue**. On a Workspace account, an **Internal** user type avoids both the
+> expiry and the warning.
 
 `CHROME_PUBLISHER_ID` is new. The Chrome Web Store API moved to v2 in October
 2025, and v2 puts the publisher in the request path
@@ -163,8 +183,22 @@ which is useful if you want to check the listing before it goes out.
 **Firefox `409`** — AMO already has that version. Bump and re-tag; a version
 number cannot be reused even if the previous upload was rejected.
 
+**Chrome `invalid_grant`** — the refresh token expired, was revoked, or was
+minted against a different client. Nine times out of ten the consent screen is
+still in **Testing** status, which expires refresh tokens after 7 days. Set it to
+**In production**, then re-run `npm run auth:chrome`.
+
 **Chrome `invalid_client`** — the OAuth client was deleted, or the refresh token
-was minted against a different client. Re-run `chrome-webstore-upload-keys`.
+was minted against a different client. Re-run `npm run auth:chrome`.
+
+**Chrome `redirect_uri_mismatch` while minting** — `http://localhost:8976` is not
+in the OAuth client's authorised redirect URIs. It must match exactly, with no
+trailing slash.
+
+**`npm run auth:chrome` returns an access token but no refresh token** — the
+account has already granted this client access. Revoke it at
+[myaccount.google.com/permissions](https://myaccount.google.com/permissions) and
+run it again.
 
 **Chrome 404 on publish** — `CHROME_PUBLISHER_ID` is missing, or belongs to a
 different account than the extension.

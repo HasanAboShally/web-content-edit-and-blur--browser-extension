@@ -30,7 +30,7 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
 const base = `http://127.0.0.1:${server.address().port}`;
 console.log(`fixtures served at ${base}\n`);
 
-const suites = ['core.test.mjs', 'context-menu.test.mjs', 'features.test.mjs', 'annotate.test.mjs', 'markup.test.mjs', 'regression.test.mjs', 'publish.test.mjs'];
+const suites = ['core.test.mjs', 'context-menu.test.mjs', 'features.test.mjs', 'annotate.test.mjs', 'markup.test.mjs', 'regression.test.mjs', 'publish.test.mjs', 'oauth-token.test.mjs'];
 // CEB_ONLY=features.test.mjs npm test — run a single suite while developing.
 const only = process.env.CEB_ONLY ? [process.env.CEB_ONLY] : suites;
 let failed = 0;

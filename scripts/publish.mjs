@@ -186,8 +186,26 @@ async function chromeAccessToken({ CHROME_CLIENT_ID, CHROME_CLIENT_SECRET, CHROM
         grant_type: 'refresh_token',
       }),
     },
-    { store: 'chrome', what: 'Chrome OAuth token refresh' },
+    { store: 'chrome', what: 'Chrome OAuth token refresh', expect: [200, 400, 401] },
   );
+
+  // Google returns a bare "invalid_grant" for a refresh token that has expired,
+  // been revoked, or was issued by a different client. By far the likeliest
+  // cause is the 7-day expiry Google applies to external OAuth apps left in
+  // "Testing" status, which turns a working release into a broken one a week
+  // later with no other warning.
+  if (json?.error === 'invalid_grant') {
+    fail(
+      'Chrome refresh token is no longer valid (invalid_grant).\n' +
+        '    Most likely the OAuth consent screen is still in "Testing" status, which\n' +
+        '    expires refresh tokens after 7 days. Set it to "In production" (or use an\n' +
+        '    Internal user type on Workspace), then mint a new token:\n' +
+        '      node scripts/oauth-token.mjs',
+    );
+  }
+  if (json?.error) {
+    fail(`Chrome OAuth token refresh failed: ${json.error}${json.error_description ? ` — ${json.error_description}` : ''}`);
+  }
   if (!json?.access_token) fail('Chrome OAuth token refresh returned no access_token');
   return json.access_token;
 }

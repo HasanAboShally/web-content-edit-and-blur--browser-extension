@@ -25,8 +25,11 @@ fs.writeFileSync(
   stub,
   `const s = JSON.parse(process.env.CEB_SCENARIO);
 globalThis.fetch = async (url) => {
-  const body = url.includes('oauth2') ? { access_token: 'stub', expires_in: 3600 }
-    : url.includes(':upload') ? s.upload
+  if (url.includes('oauth2')) {
+    const o = s.oauth ?? { status: 200, body: { access_token: 'stub', expires_in: 3600 } };
+    return { ok: o.status < 400, status: o.status, statusText: 'x', text: async () => JSON.stringify(o.body ?? {}) };
+  }
+  const body = url.includes(':upload') ? s.upload
     : url.includes(':fetchStatus') ? s.status
     : url.includes(':publish') ? s.publish
     : {};
@@ -88,6 +91,23 @@ const cases = [
 for (const c of cases) {
   const r = run(c.scenario);
   check(c.name, r.ok === c.accept, r.timedOut ? 'timed out — the poll never terminated' : '');
+}
+
+// Google's 7-day expiry on refresh tokens for "Testing" OAuth apps turns a
+// working release into a broken one a week later. The bare "invalid_grant" it
+// answers with says nothing about why, so the message has to.
+{
+  const r = run({ oauth: { status: 400, body: { error: 'invalid_grant' } } });
+  check('an expired refresh token fails the run', !r.ok);
+  check(
+    'an expired refresh token explains the 7-day expiry',
+    /Testing|7 days/.test(r.output),
+    'invalid_grant alone gives the maintainer nothing to act on',
+  );
+}
+{
+  const r = run({ oauth: { status: 401, body: { error: 'invalid_client' } } });
+  check('a bad OAuth client fails the run and names the error', !r.ok && /invalid_client/.test(r.output));
 }
 
 // Consuming the next token blindly made `--notes --dry-run` set notes to

@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { cp } from 'node:fs/promises';
 import path from 'node:path';
+import { FIREFOX_GECKO_ID } from './store-ids.mjs';
 
 const REQUIRED_FILES = [
   'manifest.json',
@@ -13,7 +14,6 @@ const REQUIRED_FILES = [
 ];
 const REQUIRED_PATHS = [...REQUIRED_FILES, 'images'];
 const TARGETS = new Set(['chrome', 'firefox', 'edge']);
-const FIREFOX_GECKO_ID = '{content-edit-blur@hasanaboshally}';
 
 function help() {
   return `Usage: node scripts/build.mjs <chrome|firefox|edge> <version>\n\nBuilds a browser-specific extension ZIP in dist/.\nExample: node scripts/build.mjs firefox 2.0.0`;

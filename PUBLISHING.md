@@ -30,7 +30,7 @@ Add these under **Settings → Secrets and variables → Actions**.
 
 | Secret | Where it comes from |
 |---|---|
-| `CHROME_EXTENSION_ID` | The 32-character id in your store URL |
+| `CHROME_EXTENSION_ID` | `adgnogkndmhcblbonkhgfbbngeghpboh` (the id in the store URL) |
 | `CHROME_PUBLISHER_ID` | Developer Dashboard → Account → Publisher ID |
 | `CHROME_CLIENT_ID` | Google Cloud Console → APIs & Services → Credentials |
 | `CHROME_CLIENT_SECRET` | Same credential |
@@ -52,13 +52,22 @@ npx chrome-webstore-upload-keys
 (`/v2/publishers/{publisher}/items/{item}`). v1 has no announced shutdown date,
 but its documentation is archived, so this repo targets v2.
 
-### Firefox — 3 secrets
+### Firefox — 2 secrets
 
 | Secret | Where it comes from |
 |---|---|
 | `FIREFOX_API_KEY` | [Developer Hub → API Keys](https://addons.mozilla.org/developers/addon/api/key/), the "JWT issuer" |
 | `FIREFOX_API_SECRET` | Same page, the "JWT secret" — shown once |
-| `FIREFOX_ADDON_ID` | `{content-edit-blur@hasanaboshally}`, braces included |
+
+The add-on id is *not* a secret and is not configured here. AMO identifies an
+add-on by the GUID in its manifest, so `publish.mjs` reads it from the package it
+is about to upload — the two cannot drift apart. `FIREFOX_ADDON_ID` is honoured
+if set, but only to assert the expected value; a disagreement fails the run.
+
+That GUID is `{ae036afb-d846-4f79-a308-13c6e8191129}`, in
+`FIREFOX_GECKO_ID` in `scripts/build.mjs`. AMO generated it when v1.3.0 was
+uploaded without an explicit id, and every installed copy is keyed to it.
+Changing it would orphan existing users rather than update them.
 
 ### Edge — 3 secrets
 
@@ -67,6 +76,10 @@ but its documentation is archived, so this repo targets v2.
 | `EDGE_PRODUCT_ID` | Partner Center → your extension → Extension overview |
 | `EDGE_CLIENT_ID` | Partner Center → Publish API → API credentials |
 | `EDGE_API_KEY` | Same page |
+
+`EDGE_PRODUCT_ID` is **not** the id in the store URL. That URL carries the
+extension id (`chlpcaigaedflhkfgmhkpknlcchkeodl`); the API wants the Product ID
+from Partner Center, which is a GUID.
 
 Edge's original API stopped working on **31 December 2024**. The current scheme
 sends the key directly as `Authorization: ApiKey …` alongside an `X-ClientID`

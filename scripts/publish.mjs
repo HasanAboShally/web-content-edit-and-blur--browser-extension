@@ -160,7 +160,7 @@ function resolvePackage(store, version) {
     );
   }
 
-  return { file, bytes: statSync(file).size };
+  return { file, bytes: statSync(file).size, manifest: packaged };
 }
 
 /* ------------------------------------------------------------------ *
@@ -440,12 +440,29 @@ function amoToken(key, secret) {
 }
 
 async function publishFirefox({ version, dryRun, uploadOnly, notes }) {
-  const env = credentials('firefox', ['FIREFOX_API_KEY', 'FIREFOX_API_SECRET', 'FIREFOX_ADDON_ID']);
+  const env = credentials('firefox', ['FIREFOX_API_KEY', 'FIREFOX_API_SECRET']);
   const pkg = resolvePackage('firefox', version);
   step('firefox', `package ${path.basename(pkg.file)} (${Math.round(pkg.bytes / 1024)} KB)`);
 
+  // AMO identifies an add-on by the GUID in its manifest, and rejects an upload
+  // whose id does not match the add-on being updated. Taking the id from the
+  // package itself means the two can never disagree; FIREFOX_ADDON_ID is only
+  // needed to override that, and then it has to agree.
+  const geckoId = pkg.manifest?.browser_specific_settings?.gecko?.id;
+  if (!geckoId) {
+    fail('Firefox package has no browser_specific_settings.gecko.id — AMO cannot match it to the listing.');
+  }
+  const override = process.env.FIREFOX_ADDON_ID?.trim();
+  if (override && override !== geckoId) {
+    fail(
+      `Firefox package declares gecko id ${geckoId}, but FIREFOX_ADDON_ID is set to a different value. ` +
+        'AMO would treat this as a different add-on and reject the upload. ' +
+        'Fix FIREFOX_GECKO_ID in scripts/build.mjs or clear the secret.',
+    );
+  }
+
   const authHeader = () => ({ Authorization: `JWT ${amoToken(env.FIREFOX_API_KEY, env.FIREFOX_API_SECRET)}` });
-  const addon = encodeURIComponent(env.FIREFOX_ADDON_ID);
+  const addon = encodeURIComponent(geckoId);
 
   if (dryRun) {
     // Check the account endpoint, not the add-on endpoint: add-on detail is
@@ -463,7 +480,7 @@ async function publishFirefox({ version, dryRun, uploadOnly, notes }) {
       { method: 'GET', headers: authHeader() },
       { store: 'firefox', what: 'AMO add-on lookup' },
     );
-    step('firefox', `add-on reachable (${addonInfo?.slug ?? env.FIREFOX_ADDON_ID})`);
+    step('firefox', `add-on reachable (${addonInfo?.slug ?? geckoId})`);
     return { store: 'firefox', status: 'dry-run ok' };
   }
 

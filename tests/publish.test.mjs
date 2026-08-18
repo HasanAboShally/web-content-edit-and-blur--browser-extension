@@ -109,6 +109,43 @@ const leak = spawnSync(process.execPath, ['scripts/publish.mjs', 'edge', '--dry-
 const leakOut = `${leak.stdout ?? ''}${leak.stderr ?? ''}`;
 check('a malformed credential is reported without printing it', !leakOut.includes('SUPERSECRET') && /EDGE_CLIENT_ID/.test(leakOut));
 
+// AMO identifies an add-on by the GUID in its manifest and rejects a mismatch as
+// a different add-on. The listing's GUID was auto-assigned by AMO at first
+// upload, so it is not guessable and drift here is silent until release day.
+const firefoxPkg = path.join(ROOT, 'dist', `content-edit-blur-firefox-${VERSION}.zip`);
+if (!fs.existsSync(firefoxPkg)) {
+  spawnSync(process.execPath, ['scripts/build.mjs', 'firefox', VERSION], { cwd: ROOT });
+}
+const firefoxEnv = { FIREFOX_API_KEY: 'user:1:1', FIREFOX_API_SECRET: 'stub' };
+
+const mismatch = spawnSync(process.execPath, ['scripts/publish.mjs', 'firefox', '--dry-run', '--version', VERSION], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  env: { ...process.env, ...firefoxEnv, FIREFOX_ADDON_ID: '{content-edit-blur@hasanaboshally}' },
+});
+check(
+  'a gecko id that disagrees with FIREFOX_ADDON_ID fails before upload',
+  mismatch.status !== 0 && /different add-on/.test(`${mismatch.stdout}${mismatch.stderr}`),
+);
+
+// A Firefox package built without an id would be unmatchable on AMO. The chrome
+// package stands in for one, since it carries no browser_specific_settings.
+const chromePkg = path.join(ROOT, 'dist', `content-edit-blur-chrome-${VERSION}.zip`);
+const stash = `${firefoxPkg}.stash`;
+fs.renameSync(firefoxPkg, stash);
+fs.copyFileSync(chromePkg, firefoxPkg);
+const noId = spawnSync(process.execPath, ['scripts/publish.mjs', 'firefox', '--dry-run', '--version', VERSION], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  env: { ...process.env, ...firefoxEnv },
+});
+fs.rmSync(firefoxPkg);
+fs.renameSync(stash, firefoxPkg);
+check(
+  'a Firefox package with no gecko id is refused',
+  noId.status !== 0 && /no browser_specific_settings/.test(`${noId.stdout}${noId.stderr}`),
+);
+
 const failed = results.filter((r) => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);
 process.exit(failed.length ? 1 : 0);

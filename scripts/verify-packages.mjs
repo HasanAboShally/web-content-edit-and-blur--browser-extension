@@ -14,6 +14,7 @@
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
+import { FIREFOX_GECKO_ID } from './store-ids.mjs';
 
 const root = process.cwd();
 const version = process.argv[2] ?? JSON.parse(
@@ -68,8 +69,11 @@ for (const target of TARGETS) {
     if (manifest.background?.service_worker) {
       problems.push(`${rel} still has background.service_worker, which Firefox ignores`);
     }
-    if (manifest.browser_specific_settings?.gecko?.id !== '{content-edit-blur@hasanaboshally}') {
-      problems.push(`${rel} is missing the gecko id, so AMO cannot match it to the listing`);
+    if (manifest.browser_specific_settings?.gecko?.id !== FIREFOX_GECKO_ID) {
+      problems.push(
+        `${rel} declares gecko id ${manifest.browser_specific_settings?.gecko?.id ?? '(none)'}, ` +
+          `expected ${FIREFOX_GECKO_ID} — AMO would not match it to the listing`,
+      );
     }
   } else {
     if (manifest.background?.service_worker !== 'background.js') {

@@ -60,10 +60,19 @@ jobs:
         run: echo "value=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
 
       - name: Build all targets
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
         run: |
           for target in chrome firefox edge; do
-            node scripts/build.mjs "$target" "${{ steps.version.outputs.value }}"
+            node scripts/build.mjs "$target" "$VERSION"
           done
+
+      # Catches a stray file or a Firefox manifest transform that stopped
+      # applying, on every push rather than only when a tag is cut.
+      - name: Verify package contents
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: node scripts/verify-packages.mjs "$VERSION"
 
       - uses: actions/upload-artifact@v7
         with:

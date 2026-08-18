@@ -15,16 +15,19 @@ and it exists purely for tests.
 | `background.js` | ~450 | Service worker: storage, context menus, commands, screenshots. |
 | `context-target.js` | ~24 | Runs on every page. Remembers the last right-clicked element. Nothing else. |
 | `page-style.css` | ~90 | Styles for injected UI. |
-| `scripts/check.mjs` | | 11 static checks. Fast, no browser. |
+| `scripts/check.mjs` | | 12 static checks. Fast, no browser. |
 | `scripts/build.mjs` | | `node scripts/build.mjs <chrome\|firefox\|edge> <version>` → `dist/*.zip`. |
-| `tests/` | | 6 Playwright suites, 143 assertions, real headed Chromium. |
+| `scripts/publish.mjs` | | Uploads to all three stores via their REST APIs. `--dry-run` verifies credentials without publishing. |
+| `scripts/preflight.mjs` | | Tag, `manifest.json`, `package.json` and `CHANGELOG.md` must agree before a release. |
+| `scripts/verify-packages.mjs` | | Asserts the built ZIPs contain exactly the expected files and the right manifest per browser. |
+| `tests/` | | 7 suites, 157 assertions. 6 drive real headed Chromium; `publish.test.mjs` stubs the store APIs. |
 
 ## Golden rules
 
 1. **`page-code.js` is a single ~3,800-line IIFE.** Line numbers in any note, summary or
    plan go stale immediately. **Always `grep` for the function name**, never navigate by
    remembered line number.
-2. **Run both gates before claiming done:** `npm run check` (11 static checks) and
+2. **Run both gates before claiming done:** `npm run check` (12 static checks) and
    `npm test` (143 assertions). CI runs both.
 3. **State is the source of truth; the DOM is derived.** Mutate `state`, then call
    `renderState()`, which wipes and re-applies everything. This is what makes undo/redo,
@@ -34,10 +37,12 @@ and it exists purely for tests.
 ## Commands
 
 ```bash
-npm run check                          # 11 static checks, ~1s, no browser
-npm test                               # all 6 suites (several minutes)
+npm run check                          # 12 static checks, ~1s, no browser
+npm test                               # all 7 suites (several minutes)
 CEB_ONLY=markup.test.mjs npm test      # one suite while developing
+npm run build:all                      # all three ZIPs, then verify their contents
 node scripts/build.mjs chrome 2.3.0    # → dist/content-edit-blur-chrome-2.3.0.zip
+node scripts/publish.mjs all --dry-run # check store credentials, upload nothing
 ```
 
 ## The static checks, and why they exist
@@ -45,8 +50,9 @@ node scripts/build.mjs chrome 2.3.0    # → dist/content-edit-blur-chrome-2.3.0
 `scripts/check.mjs` guards **cross-file drift** — the class of bug where two files each
 look correct in isolation but disagree. Every one was added after such a bug shipped:
 
-- manifest parses; every JS file parses; every referenced file exists; every mode has both
-  icon sizes; manifest version matches `package.json`.
+- manifest parses; every JS file parses; every build script in `scripts/` parses; every
+  referenced file exists; every mode has both icon sizes; manifest version matches
+  `package.json`.
 - **At most 4 commands declare a `suggested_key`.** Chrome silently rejects *the entire
   manifest* past four — the extension simply fails to load with no useful error.
 - `restoreFromStorage` merges rather than overwrites state.

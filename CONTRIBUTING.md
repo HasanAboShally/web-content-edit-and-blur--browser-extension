@@ -28,8 +28,8 @@ injected per-activation.
 Both gates must be green. CI runs both on every PR.
 
 ```bash
-npm run check    # 11 static checks, ~1s, no browser needed
-npm test         # 6 Playwright suites, 143 assertions, a few minutes
+npm run check    # 12 static checks, ~1s, no browser needed
+npm test         # 7 suites, 157 assertions, a few minutes
 ```
 
 While developing, run a single suite:
@@ -53,6 +53,7 @@ Any behaviour change should come with a test. Suites live in `tests/`:
 | `annotate.test.mjs` | Arrows, shapes, pen, text notes |
 | `markup.test.mjs` | Highlighter, step badges, move/resize |
 | `regression.test.mjs` | Specific past bugs, so they stay fixed |
+| `publish.test.mjs` | Store publishing: rejections fail the run (no browser) |
 
 Register new suites in the list at the top of `tests/run.mjs`.
 
@@ -89,10 +90,12 @@ Maintainers only:
 1. Bump the version in **both** `manifest.json` and `package.json` — `npm run check`
    enforces that they match.
 2. Move `## [Unreleased]` in `CHANGELOG.md` to the new version number.
-3. Tag and push: `git tag v2.4.0 && git push origin v2.4.0`.
+3. Check it holds together: `npm run preflight -- v2.4.0`.
+4. Tag and push: `git tag v2.4.0 && git push origin v2.4.0`.
 
-The release workflow builds and verifies all three store packages, attaches them to a
-GitHub Release, and publishes to the Chrome and Firefox stores. Store credentials are
+The release workflow re-runs both gates, builds and verifies all three store packages,
+attaches them to a GitHub Release, and publishes to all three stores. The tag has to match
+the committed version — it cannot introduce one. Store credentials and a dry-run mode are
 documented in [PUBLISHING.md](PUBLISHING.md).
 
 ## The website

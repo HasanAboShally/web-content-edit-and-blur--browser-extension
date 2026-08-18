@@ -28,6 +28,15 @@ check('every JS file parses', () => {
   return `${files.length} files`;
 });
 
+// A broken build or publish script only shows up at release time otherwise, which
+// is the worst moment to discover it.
+check('every build script parses', () => {
+  const dir = path.join(root, 'scripts');
+  const files = fs.readdirSync(dir).filter(f => f.endsWith('.mjs'));
+  files.forEach(f => execFileSync(process.execPath, ['--check', path.join(dir, f)]));
+  return `${files.length} files`;
+});
+
 // Chrome silently rejects the whole manifest past four suggested keys, which presents
 // as the service worker never registering.
 check('at most 4 commands declare a suggested_key', () => {

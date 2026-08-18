@@ -1,4 +1,4 @@
-name: Build and Release Extension
+name: Release
 
 on:
   push:
@@ -7,159 +7,201 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 2.0.0)'
-        required: true
+        description: 'Version to release (must match manifest.json)'
+        required: false
         type: string
+      stores:
+        description: 'Which stores to publish to'
+        required: true
+        default: all
+        type: choice
+        options: [all, chrome, firefox, edge]
+      dry_run:
+        description: 'Verify credentials and packages without uploading'
+        required: true
+        default: true
+        type: boolean
+
+# Never cancel a release that is midway through uploading to a store. A
+# half-published release is much worse to recover from than a slow one.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  # Cheap checks first, so an inconsistent version fails in seconds rather than
+  # after a browser download.
+  verify:
+    name: Verify
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: '20'
+          node-version: 20
 
-      - name: Get version from tag or input
-        id: version
+      # A tag is not allowed to introduce a version. It has to agree with what
+      # is committed, otherwise the build would stamp a version that nothing in
+      # the repository claims and ship it.
+      - name: Release preflight
+        env:
+          # Via env rather than inline interpolation: a dispatch input is
+          # attacker-controllable text, and inline it would be pasted into the
+          # script before the shell ever sees it.
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          set -euo pipefail
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          if [ "$EVENT_NAME" = "push" ]; then
+            node scripts/preflight.mjs "${GITHUB_REF#refs/tags/}"
           else
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            node scripts/preflight.mjs "$INPUT_VERSION"
           fi
 
-      - name: Build browser packages
-        run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          node scripts/build.mjs chrome "$VERSION"
-          node scripts/build.mjs firefox "$VERSION"
-          node scripts/build.mjs edge "$VERSION"
+      - name: Static checks
+        run: npm run check
 
-      - name: Verify packages
+  test:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # The extension only loads in a headed browser, so drive a virtual display.
+      - name: Run test suites
+        run: xvfb-run -a npm test
+
+  build:
+    name: Build packages
+    runs-on: ubuntu-latest
+    needs: [verify, test]
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+      stores: ${{ steps.stores.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      # Preflight has already proved this matches the tag.
+      - name: Read version
+        id: version
+        run: echo "value=$(node -p "require('./manifest.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Select stores
+        id: stores
+        env:
+          # `stores` is a choice input so GitHub constrains it, but keeping the
+          # "no interpolation into run:" rule absolute is easier to enforce than
+          # a per-case judgement.
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_STORES: ${{ inputs.stores }}
         run: |
-          set -euo pipefail
-          VERSION="${{ steps.version.outputs.version }}"
-          required=(manifest.json background.js page-code.js page-style.css context-target.js)
+          if [ "$EVENT_NAME" = "push" ] || [ "$INPUT_STORES" = "all" ]; then
+            echo 'value=["chrome","firefox","edge"]' >> "$GITHUB_OUTPUT"
+          else
+            echo "value=[\"$INPUT_STORES\"]" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build all targets
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
           for target in chrome firefox edge; do
-            zip_path="dist/content-edit-blur-${target}-${VERSION}.zip"
-            test -f "$zip_path"
-            echo "Verifying $zip_path"
-            unzip -Z1 "$zip_path" | sort
-            for file in "${required[@]}"; do
-              unzip -Z1 "$zip_path" | grep -Fxq "$file"
-            done
-            unzip -Z1 "$zip_path" | grep -q '^images/'
-            if unzip -Z1 "$zip_path" | grep -Eq '(^|/)(popup\.html|popup\.css|popup\.js)$'; then
-              echo "Package contains removed popup files: $zip_path" >&2
-              exit 1
-            fi
-            while IFS= read -r entry; do
-              case "$entry" in
-                manifest.json|background.js|page-code.js|page-style.css|context-target.js|images/|images/*) ;;
-                *)
-                  echo "Unexpected package entry in $zip_path: $entry" >&2
-                  exit 1
-                  ;;
-              esac
-            done < <(unzip -Z1 "$zip_path")
+            node scripts/build.mjs "$target" "$VERSION"
           done
-          unzip -p "dist/content-edit-blur-firefox-${VERSION}.zip" manifest.json | node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(0, 'utf8')); if (!Array.isArray(m.background?.scripts) || m.background.scripts[0] !== 'background.js' || m.background.service_worker || m.browser_specific_settings?.gecko?.id !== '{content-edit-blur@hasanaboshally}') process.exit(1);"
-          unzip -p "dist/content-edit-blur-chrome-${VERSION}.zip" manifest.json | node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync(0, 'utf8')); if (m.background?.service_worker !== 'background.js' || m.background.scripts) process.exit(1);"
 
-      - name: Create GitHub Release
+      - name: Verify package contents
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: node scripts/verify-packages.mjs "$VERSION"
+
+      - name: Create GitHub release
+        if: github.event_name == 'push'
         uses: softprops/action-gh-release@v3
         with:
-          name: v${{ steps.version.outputs.version }}
-          tag_name: v${{ steps.version.outputs.version }}
-          draft: false
-          prerelease: false
-          files: |
-            dist/content-edit-blur-chrome-${{ steps.version.outputs.version }}.zip
-            dist/content-edit-blur-firefox-${{ steps.version.outputs.version }}.zip
-            dist/content-edit-blur-edge-${{ steps.version.outputs.version }}.zip
+          name: v${{ steps.version.outputs.value }}
+          tag_name: v${{ steps.version.outputs.value }}
+          files: dist/*.zip
           body: |
-            ## Content Edit & Blur v${{ steps.version.outputs.version }}
-            
-            ### Installation
-            - **Chrome**: [Chrome Web Store](https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh)
-            - **Firefox**: [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur)
-            - **Edge**: [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl)
-            
-            ### Manual Installation
-            Download the ZIP file for your browser and load it as an unpacked extension.
+            ## Content Edit & Blur v${{ steps.version.outputs.value }}
+
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/master/CHANGELOG.md) for what changed.
+
+            ### Install
+            - [Chrome Web Store](https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh)
+            - [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur)
+            - [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl)
+
+            Or download the ZIP for your browser below and load it unpacked.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@v7
         with:
           name: extension-packages
           path: dist/*.zip
+          retention-days: 14
 
-  # Publish to Chrome Web Store
-  publish-chrome:
-    needs: build
+  # One job per store, so a failure names the store in the UI and can be re-run
+  # on its own without re-publishing to the stores that already succeeded.
+  publish:
+    name: Publish to ${{ matrix.store }}
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        store: ${{ fromJSON(needs.build.outputs.stores) }}
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - uses: actions/download-artifact@v7
         with:
           name: extension-packages
           path: dist
 
-      - name: Get version from tag
-        id: version
+      # There is deliberately no continue-on-error in this job. A store
+      # rejecting an upload has to turn the run red: automation that reports
+      # success for a release that never shipped is worse than no automation.
+      - name: Publish
         run: |
-          set -euo pipefail
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Publish to Chrome Web Store
-        uses: mnao305/chrome-extension-upload@v5.0.0
-        continue-on-error: true
-        with:
-          file-path: dist/content-edit-blur-chrome-${{ steps.version.outputs.version }}.zip
-          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
-          client-id: ${{ secrets.CHROME_CLIENT_ID }}
-          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
-          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
-
-  # Publish to Firefox Add-ons
-  publish-firefox:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: extension-packages
-          path: dist
-
-      - name: Get version from tag
-        id: version
-        run: |
-          set -euo pipefail
-          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Publish to Firefox Add-ons
-        uses: yayuyokitano/firefox-addon@v0.0.6-alpha
-        continue-on-error: true
-        with:
-          api_key: ${{ secrets.FIREFOX_API_KEY }}
-          api_secret: ${{ secrets.FIREFOX_API_SECRET }}
-          guid: '{content-edit-blur@hasanaboshally}'
-          xpi_path: dist/content-edit-blur-firefox-${{ steps.version.outputs.version }}.zip
-
-  # Note: Edge Add-ons API is more complex
-  # You may need to use their Partner Center API manually
-  # or use a tool like publish-browser-extension
+          node scripts/publish.mjs "$STORE" \
+            --version "$VERSION" \
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
+        env:
+          STORE: ${{ matrix.store }}
+          VERSION: ${{ needs.build.outputs.version }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
+          FIREFOX_API_KEY: ${{ secrets.FIREFOX_API_KEY }}
+          FIREFOX_API_SECRET: ${{ secrets.FIREFOX_API_SECRET }}
+          FIREFOX_ADDON_ID: ${{ secrets.FIREFOX_ADDON_ID }}
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}

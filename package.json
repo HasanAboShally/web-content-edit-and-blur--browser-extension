@@ -7,7 +7,11 @@
   "scripts": {
     "test": "node tests/run.mjs",
     "check": "node scripts/check.mjs",
-    "build": "node scripts/build.mjs"
+    "build": "node scripts/build.mjs",
+    "build:all": "node scripts/build-all.mjs",
+    "preflight": "node scripts/preflight.mjs",
+    "verify:packages": "node scripts/verify-packages.mjs",
+    "publish:stores": "node scripts/publish.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1"

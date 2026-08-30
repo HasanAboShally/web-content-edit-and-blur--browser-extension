@@ -15,6 +15,10 @@ This project follows [Semantic Versioning](https://semver.org/).
   move, a handle to resize. Hit testing follows the ink rather than the bounding box, so
   you can still draw inside a circle you have already drawn.
 
+### Changed
+- Refreshed the extension icon with a clearer content-to-blur mark that remains
+  recognizable at browser and store sizes.
+
 ### Fixed
 - Annotations sat above the page and swallowed clicks meant for it — and because the old
   gesture was "click to remove", a mark over a link deleted itself instead of following

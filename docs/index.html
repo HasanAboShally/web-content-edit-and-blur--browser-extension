@@ -542,6 +542,20 @@ kbd{
 .qn{font-size:13px;font-weight:500}
 .qs{font-family:var(--mono);font-size:10px;letter-spacing:.09em;color:var(--dim);text-transform:uppercase}
 
+/* ── Support ─────────────────────────────────────────────── */
+.support-band{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
+.support-in{
+  display:grid;grid-template-columns:minmax(0,.9fr) minmax(320px,1.1fr);
+  gap:clamp(28px,7vw,96px);align-items:center;padding-top:clamp(44px,7vw,78px);padding-bottom:clamp(44px,7vw,78px);
+}
+.support-in h2{font-size:clamp(36px,5.5vw,66px);margin-top:8px}
+.support-copy{display:flex;flex-direction:column;align-items:flex-start;gap:18px}
+.support-copy p{color:var(--muted);max-width:580px}
+.support-action{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.support-action .btn svg{fill:currentColor;stroke:none}
+.support-note{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+@media(max-width:760px){.support-in{grid-template-columns:1fr}.support-copy{gap:16px}}
+
 /* ── Privacy ─────────────────────────────────────────────── */
 .priv{
   border:1px solid var(--line);border-radius:18px;
@@ -885,6 +899,26 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
   </div>
 </section>
 
+<section class="support-band" id="support">
+  <div class="wrap support-in">
+    <div class="rv">
+      <span class="label">Support the project</span>
+      <h2>Keep the useful part<br><em>free.</em></h2>
+    </div>
+    <div class="support-copy rv s1">
+      <p>Content Edit &amp; Blur stays free, open source, and free of tracking. If it has saved you time, sponsorship helps fund browser-store maintenance, compatibility work, and future improvements.</p>
+      <div class="support-action">
+        <a class="btn btn-primary" href="https://github.com/sponsors/HasanAboShally">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-8-4.9-8-11.1A4.9 4.9 0 0 1 12 6.1a4.9 4.9 0 0 1 8 3.8C20 16.1 12 21 12 21Z"/></svg>
+          Sponsor on GitHub
+        </a>
+        <span class="support-note">One-time or monthly</span>
+      </div>
+      <p class="support-note">No paywall. No sponsor prompts inside the extension.</p>
+    </div>
+  </div>
+</section>
+
 <section class="sec" id="privacy" style="padding-top:0">
   <div class="wrap">
     <div class="priv rv">
@@ -936,6 +970,7 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
       <div class="foot-l"><img src="images/app-icon-128.png?v=2.3.0" alt="">Content Edit &amp; Blur</div>
       <nav>
         <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension">GitHub</a>
+        <a href="https://github.com/sponsors/HasanAboShally">Sponsor</a>
         <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/CHANGELOG.md">Changelog</a>
         <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/issues">Report an issue</a>
         <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/LICENSE">MIT License</a>

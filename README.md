@@ -19,7 +19,8 @@
 <p align="center">
   <a href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">Website</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
-  <a href="CONTRIBUTING.md">Contributing</a>
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="https://github.com/sponsors/HasanAboShally">Sponsor</a>
 </p>
 
 ## Install
@@ -107,6 +108,13 @@ Works entirely offline. No data collection, no telemetry, no external requests.
 One ~20-line content script (`context-target.js`) runs on every page, solely to remember
 which element you last right-clicked. It reads nothing else. The full editing script is
 injected only once you activate a mode.
+
+## Support
+
+Content Edit & Blur stays free, open source, and free of tracking. If it has saved you
+time, you can [support ongoing maintenance through GitHub Sponsors](https://github.com/sponsors/HasanAboShally)
+with a one-time or monthly contribution. There are no locked features or in-extension
+prompts attached to sponsorship.
 
 ## Contributing
 

@@ -127,6 +127,69 @@ at a time:
   [chrome] missing 5 credentials for chrome: CHROME_CLIENT_ID, …
 ```
 
+## Release-day order
+
+The package APIs and the listing dashboards are separate systems. A tag uploads
+code, but it does not write descriptions, screenshots, search terms or privacy
+answers. Use this order so the package and its listing enter review together:
+
+1. Update `manifest.json`, `package.json` and `CHANGELOG.md`, then run
+   `node scripts/preflight.mjs vX.Y.Z`, `npm test`, `npm run check` and
+   `npm run build:all`.
+2. Update each store's listing draft. Keep the reusable copy, source icon and
+   screenshots in `store-assets/` so the three stores do not drift.
+3. Run the GitHub **Release** workflow manually with `dry_run=true` and
+   `stores=all`. Do not tag until all three credential probes pass.
+4. If the manifest adds permissions, see the Chrome two-phase note below before
+   tagging.
+5. Commit and push the release state, then create and push the version tag.
+6. Verify the result in each store dashboard. The workflow result is evidence,
+   but the dashboard is the source of truth for `Pending review`, `In review`,
+   `Approved` and live versions.
+
+### Chrome permission changes are two-phase
+
+Chrome does not expose justification fields for new manifest permissions until
+the package containing those permissions has been uploaded. That means a tag run
+can successfully upload a new version and then fail at `:publish` because the new
+Privacy fields are blank.
+
+If that happens:
+
+1. Open **Package** and confirm the intended version is present as the draft.
+2. Open **Privacy** and complete every newly displayed permission justification.
+   Save the draft and confirm there are no invalid fields.
+3. Submit the existing draft for review from the dashboard. Do **not** upload the
+   same version again or create another tag.
+4. A broad-host-permission warning is expected when `<all_urls>` is intentional;
+   confirm it only after verifying the justification matches the implementation.
+
+The original Actions run remains red after a manual recovery because workflow
+conclusions are immutable. A red historical run does not mean the repaired store
+submission is still failing; check the Chrome item status directly.
+
+### Store dashboard details learned from 2.3.0
+
+- **Chrome:** title and summary come from the package. Description, screenshots,
+  links and privacy answers come from the saved dashboard draft.
+- **Firefox:** listing metadata is independent of version upload. Preserve the
+  generated add-on GUID. A listed version may be approved immediately even while
+  Chrome and Edge remain in review.
+- **Edge:** complete both **Store listings** and **Privacy** before submission.
+  The Publish API submits the current Partner Center draft with the package, so
+  do not also click the dashboard's top-level Publish button.
+- **Edge legacy media:** migrated screenshot records may have inert delete
+  controls. Prefer the UI, but Partner Center's own authenticated operation is
+  `DELETE .../listings/Assets/{assetId}`. Identify the exact record from
+  `GET .../listings/Assets?summaryId=...`, delete one record at a time, and
+  refetch after every mutation. Never guess or bulk-delete asset IDs.
+- **Dashboard automation:** Chrome and Edge use animated custom controls. If a
+  visible control never becomes "stable", invoke the actual host element once
+  and verify the resulting network request or server state before continuing.
+- **GitHub monitoring:** use one `gh run watch` process or the public Actions
+  page. Repeated polling loops can trigger GitHub's secondary Actions API limit
+  even when the core API quota still appears healthy.
+
 ## What a release does
 
 ```
@@ -171,9 +234,10 @@ The same script runs in CI, so a failing release can be reproduced locally.
 
 ## Review times
 
-Chrome and Edge go live automatically once review passes. Firefox listed
-versions wait for a human reviewer. `--upload-only` uploads without submitting,
-which is useful if you want to check the listing before it goes out.
+Chrome and Edge go live automatically once review passes. Firefox may approve a
+listed version immediately or send it to human review. `--upload-only` uploads
+without submitting, which is useful if you want to check the listing before it
+goes out.
 
 ## Troubleshooting
 
@@ -212,8 +276,22 @@ again.
 than the one already in the store. The API will not overwrite a published
 version.
 
+**Chrome package uploaded but publish failed** — open **Package** first. If the
+new version is already the draft, do not upload it again. Check **Privacy** for
+blank justification fields introduced by new permissions, save them, then submit
+that existing draft.
+
+**The tag workflow is red but the store says Pending review** — a failed Actions
+run keeps its original conclusion after manual recovery. Trust the store's
+current status and record the recovery; do not create a replacement version just
+to make the old workflow green.
+
 **Edge `403`** — the API key is wrong or expired. Keys are shown once, and
 Partner Center allows two at a time so you can rotate without downtime.
+
+**Edge listing says a step is incomplete** — package credentials are unrelated
+to listing completeness. Open the draft and complete **Store listings** and
+**Privacy** before submitting the package.
 
 **`version mismatch: … contains manifest version X, expected Y`** — `dist/` is
 stale. Rebuild.

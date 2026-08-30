@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Content Edit &amp; Blur — Edit, blur, redact and annotate any webpage</title>
 <meta name="description" content="A browser extension to edit, blur, redact and annotate any webpage. For mockups, screenshots and screen shares. Works entirely offline — no data collection.">
-<link rel="icon" type="image/png" href="images/app-icon-128.png">
+<link rel="icon" type="image/png" href="images/app-icon-128.png?v=2.3.0">
 <link rel="canonical" href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
 <meta name="theme-color" content="#f7f5f0" id="theme-color">
 
@@ -17,11 +17,15 @@
 <meta property="og:title" content="Content Edit & Blur — Take the screenshot. Leave the secrets.">
 <meta property="og:description" content="Edit, blur, redact and annotate any webpage. Works entirely offline.">
 <meta property="og:url" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
-<meta property="og:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png">
+<meta property="og:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png?v=2.3.0">
+<meta property="og:image:width" content="128">
+<meta property="og:image:height" content="128">
+<meta property="og:image:alt" content="Content Edit & Blur app icon">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Content Edit & Blur">
 <meta name="twitter:description" content="Edit, blur, redact and annotate any webpage. Works entirely offline.">
-<meta name="twitter:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png">
+<meta name="twitter:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png?v=2.3.0">
+<meta name="twitter:image:alt" content="Content Edit & Blur app icon">
 
 <!-- Fonts are self-hosted. A tool that promises no data collection should not
      phone home to a font CDN just to render its own landing page. -->
@@ -220,8 +224,10 @@ nav.stuck{border-bottom-color:var(--line)}
   padding:6px 15px 6px 9px;margin-bottom:30px;
   font-family:var(--mono);font-size:11px;letter-spacing:.13em;
   text-transform:uppercase;color:var(--muted);
-  background:var(--surface);
+  background:var(--surface);text-decoration:none;
+  transition:border-color .2s,color .2s,box-shadow .2s;
 }
+.eyebrow:hover{border-color:var(--accent-line);color:var(--fg);box-shadow:var(--shadow)}
 .eyebrow b{
   color:var(--accent-ink);font-weight:500;background:var(--accent-soft);
   padding:2px 7px;border-radius:999px;letter-spacing:.1em;
@@ -580,7 +586,7 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
 <nav id="nav">
   <div class="nav-in">
     <a class="nav-mark" href="#top">
-      <img src="images/app-icon-128.png" alt="">
+      <img src="images/app-icon-128.png?v=2.3.0" alt="">
       <span>Content Edit &amp; Blur</span>
     </a>
     <div class="nav-links">
@@ -600,7 +606,7 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
 
 <header class="hero" id="top">
   <div class="wrap hero-in">
-    <div class="eyebrow rise d1"><b>v2.3</b> Highlighter · Step badges · Move &amp; resize</div>
+    <a class="eyebrow rise d1" href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/releases/tag/v2.3.0" aria-label="See what changed in version 2.3.0"><b>v2.3.0</b> Highlighter · Step badges · Move &amp; resize</a>
     <h1>
       <span class="rise d2" style="display:block">Take the screenshot.</span>
       <span class="l2 rise d3">Leave the <span class="redacted" title="Yes, that is the extension">secrets</span>.</span>
@@ -927,7 +933,7 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
 <footer>
   <div class="wrap">
     <div class="foot">
-      <div class="foot-l"><img src="images/app-icon-128.png" alt="">Content Edit &amp; Blur</div>
+      <div class="foot-l"><img src="images/app-icon-128.png?v=2.3.0" alt="">Content Edit &amp; Blur</div>
       <nav>
         <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension">GitHub</a>
         <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/CHANGELOG.md">Changelog</a>

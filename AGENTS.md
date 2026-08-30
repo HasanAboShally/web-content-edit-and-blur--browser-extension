@@ -20,7 +20,8 @@ and it exists purely for tests.
 | `scripts/publish.mjs` | | Uploads to all three stores via their REST APIs. `--dry-run` verifies credentials without publishing. |
 | `scripts/preflight.mjs` | | Tag, `manifest.json`, `package.json` and `CHANGELOG.md` must agree before a release. |
 | `scripts/verify-packages.mjs` | | Asserts the built ZIPs contain exactly the expected files and the right manifest per browser. |
-| `tests/` | | 7 suites, 157 assertions. 6 drive real headed Chromium; `publish.test.mjs` stubs the store APIs. |
+| `tests/` | | 8 suites, 178 assertions. 6 drive real headed Chromium; the publishing suites stub external APIs. |
+| `store-assets/` | | Source icon, shared listing copy and five store screenshots. Not packaged with the extension. |
 
 ## Golden rules
 
@@ -28,7 +29,7 @@ and it exists purely for tests.
    plan go stale immediately. **Always `grep` for the function name**, never navigate by
    remembered line number.
 2. **Run both gates before claiming done:** `npm run check` (12 static checks) and
-   `npm test` (143 assertions). CI runs both.
+  `npm test` (178 assertions). CI runs both.
 3. **State is the source of truth; the DOM is derived.** Mutate `state`, then call
    `renderState()`, which wipes and re-applies everything. This is what makes undo/redo,
    cross-tab sync and reload-restore work for free. Never hand-patch the DOM as a
@@ -44,6 +45,22 @@ npm run build:all                      # all three ZIPs, then verify their conte
 node scripts/build.mjs chrome 2.3.0    # → dist/content-edit-blur-chrome-2.3.0.zip
 node scripts/publish.mjs all --dry-run # check store credentials, upload nothing
 ```
+
+## Store release discipline
+
+- Store metadata is not published by `scripts/publish.mjs`. Update the Chrome,
+  Firefox and Edge listing drafts before tagging; `store-assets/` is the shared
+  source of truth for copy and media.
+- A Chrome package that adds permissions creates new required Privacy fields only
+  after upload. If `:publish` fails, complete those fields and submit the existing
+  uploaded draft; do not re-upload the version or create a replacement tag.
+- Edge's Publish API submits the current Partner Center draft. Complete Store
+  listings and Privacy first, and never click dashboard Publish in parallel with
+  the API release.
+- A workflow run stays red after a manual store recovery. Verify current state in
+  the store dashboard instead of treating the historical conclusion as live state.
+- Do not hammer `gh run view` in polling loops. One watcher is enough; repeated
+  requests can trigger GitHub's secondary Actions API throttle.
 
 ## The static checks, and why they exist
 

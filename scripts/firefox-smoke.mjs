@@ -13,11 +13,21 @@ const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-firefox-smoke-'));
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 function confirmsInstall(output) {
-  // web-ext decorates this line with terminal colours even when NO_COLOR is
-  // set. GitHub strips them from its log, but the child-process stream still
-  // contains them, so normalize before looking for the confirmation.
+  // Normalize terminal formatting before looking for the confirmation.
   const normalized = stripVTControlCharacters(output).replace(/\s+/g, ' ');
   return /\bInstalled\b.*\btemporary add-on\b/.test(normalized);
+}
+
+function stopProcessTree(child, signal) {
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore' });
+    return;
+  }
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    child.kill(signal);
+  }
 }
 
 function fail(message, output = '') {
@@ -76,11 +86,24 @@ try {
       '--no-input',
       '--no-config-discovery',
       '--start-url', 'about:blank',
-    ], { cwd: root, env: { ...process.env, NO_COLOR: '1' } });
+    ], {
+      cwd: root,
+      detached: process.platform !== 'win32',
+      env: { ...process.env, NO_COLOR: '1' },
+    });
 
     let combined = '';
     let installed = false;
     let finishing = false;
+    let settled = false;
+    let shutdownTimeout;
+    const settle = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      clearTimeout(shutdownTimeout);
+      callback(value);
+    };
     const append = chunk => {
       const text = String(chunk);
       combined += text;
@@ -88,7 +111,13 @@ try {
       if (!installed && confirmsInstall(combined)) {
         installed = true;
         finishing = true;
-        setTimeout(() => child.kill('SIGTERM'), 750);
+        setTimeout(() => {
+          stopProcessTree(child, 'SIGTERM');
+          shutdownTimeout = setTimeout(() => {
+            stopProcessTree(child, 'SIGKILL');
+            settle(resolve, combined);
+          }, 5_000);
+        }, 750);
       }
     };
     child.stdout.on('data', append);
@@ -96,18 +125,16 @@ try {
 
     const timeout = setTimeout(() => {
       finishing = true;
-      child.kill('SIGTERM');
-      reject(new Error(`Firefox did not install the add-on within 60 seconds\n${combined}`));
+      stopProcessTree(child, 'SIGKILL');
+      settle(reject, new Error(`Firefox did not install the add-on within 60 seconds\n${combined}`));
     }, 60_000);
 
     child.on('error', error => {
-      clearTimeout(timeout);
-      reject(error);
+      settle(reject, error);
     });
     child.on('close', code => {
-      clearTimeout(timeout);
-      if (installed && finishing) resolve(combined);
-      else reject(new Error(`Firefox smoke test exited ${code ?? 'before startup'}\n${combined}`));
+      if (installed && finishing) settle(resolve, combined);
+      else settle(reject, new Error(`Firefox smoke test exited ${code ?? 'before startup'}\n${combined}`));
     });
   });
 

@@ -3,16 +3,22 @@ import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { firefox } from 'playwright';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const version = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')).version;
 const packagePath = path.join(root, 'dist', `content-edit-blur-firefox-${version}.zip`);
 const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-firefox-smoke-'));
-// GitHub's pseudo-terminal can insert a carriage return or line break while
-// web-ext paints this status line. Match across those control boundaries.
-const installMarker = /Installed[\s\S]*? as a temporary add-on/;
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+
+function confirmsInstall(output) {
+  // web-ext decorates this line with terminal colours even when NO_COLOR is
+  // set. GitHub strips them from its log, but the child-process stream still
+  // contains them, so normalize before looking for the confirmation.
+  const normalized = stripVTControlCharacters(output).replace(/\s+/g, ' ');
+  return /\bInstalled\b.*\btemporary add-on\b/.test(normalized);
+}
 
 function fail(message, output = '') {
   if (output.trim()) console.error(output.trim());
@@ -79,7 +85,7 @@ try {
       const text = String(chunk);
       combined += text;
       process.stdout.write(text);
-      if (!installed && installMarker.test(combined)) {
+      if (!installed && confirmsInstall(combined)) {
         installed = true;
         finishing = true;
         setTimeout(() => child.kill('SIGTERM'), 750);
@@ -105,7 +111,7 @@ try {
     });
   });
 
-  if (!installMarker.test(output)) fail('Firefox did not confirm temporary add-on installation', output);
+  if (!confirmsInstall(output)) fail('Firefox did not confirm temporary add-on installation', output);
   console.log(`\nPASS  Firefox installed Content Edit & Blur ${version}`);
 } finally {
   fs.rmSync(sourceDir, { recursive: true, force: true });

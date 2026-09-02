@@ -1,3 +1,5 @@
+# Pull request
+
 ## What and why
 
 <!-- What changed, and what problem it solves. If it fixes a bug, say what the user saw. -->
@@ -6,9 +8,11 @@ Closes #
 
 ## Checklist
 
-- [ ] `npm run check` passes (11 static checks)
-- [ ] `npm test` passes (6 suites)
+- [ ] `npm run typecheck` passes
+- [ ] `npm run check` passes
+- [ ] `npm test` passes (all suites)
 - [ ] Added or updated a test for this change
+- [ ] Preserved the state and module invariants in `ARCHITECTURE.md`
 - [ ] `CHANGELOG.md` updated if the change is user-visible
 - [ ] Tried it in a real browser as an unpacked extension
 

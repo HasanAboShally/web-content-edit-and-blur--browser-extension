@@ -20,6 +20,7 @@
   <a href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">Website</a> ·
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="ARCHITECTURE.md">Architecture</a> ·
   <a href="https://github.com/sponsors/HasanAboShally">Sponsor</a>
 </p>
 
@@ -36,21 +37,27 @@ Or load it unpacked — see [CONTRIBUTING.md](CONTRIBUTING.md#running-it-locally
 | | |
 |---|---|
 | **Edit** | Click any text to rewrite it. `Alt+R` replaces every occurrence. Double-click an image to swap it. |
-| **Blur** | Click to blur, click again for a stronger blur (3 levels). |
-| **Hide** | Remove an element entirely. |
-| **Draw** | Drag a rectangle to blur or block out any region. |
-| **Annotate** | Arrows, circles, highlighter and text notes. |
+| **Blur** | Blur a whole element, or switch Target to Area and drag a precise rectangle. Choose Soft or Strong directly. |
+| **Hide** | Click an element to remove it entirely. |
+| **Annotate** | Arrows, circles, boxes, highlighter, text notes and a freehand Pen. |
 | **Screenshot** | Capture the page with your edits applied; the toolbar hides itself first. |
-| **Redact** *(Pro)* | A solid, irreversible block. Blur can sometimes be reversed from an image — redaction cannot. |
+| **Redact** *(Advanced)* | Cover a whole element, or switch Target to Area and drag a precise solid block. Blur can sometimes be reversed from an image — redaction cannot. |
 
-Changes save automatically and come back on reload.
+**Remember changes** is on by default. Eligible changes are stored only in your browser
+and return after reload; turn it off for a session-only workflow.
 
-### Pro mode
+Blur and Redact share a **Target** control: **Element** clicks an existing page item;
+**Area** drags a fixed rectangle. Freehand drawing is under **Annotate → Pen**.
+Click an existing privacy effect to select it, then change its effect or blur strength,
+or remove it explicitly. Selected Areas can also be moved, resized and keyboard-nudged.
 
-The toolbar opens in **Simple** mode. Switching to **Pro** (bottom-left) adds Redact,
-Redo, per-site rule **scope**, a **rules panel**, JSON **export/import**, a **draw style**
-choice, and three more annotate tools: **box**, freehand **pen**, and numbered **step**
-badges. Your choice is remembered.
+### Essentials and Advanced
+
+The toolbar opens in **Essentials**, which includes the everyday editing, privacy and
+annotation workflow — including Undo, Redo, boxes and freehand Pen. Switching to
+**Advanced** (bottom-left) adds the higher-risk or administrative tools: Redact,
+per-site rule **scope**, the **rules panel**, JSON **export/import**, and numbered
+**step** badges. Your choice is remembered.
 
 ## Using it
 
@@ -75,8 +82,8 @@ uses `mix-blend-mode: multiply`, so text underneath stays black and readable ins
 washing out to grey.
 
 Annotations are **not saved by default** — most exist to explain one screenshot. Turn on
-**Keep after reload** to persist them. They are always tied to a single page; an arrow at
-a fixed position means nothing on another URL.
+**Save annotations too** to include them in Remember changes. They are always tied to a
+single page; an arrow at a fixed position means nothing on another URL.
 
 ## Shortcuts
 
@@ -106,8 +113,8 @@ Works entirely offline. No data collection, no telemetry, no external requests.
 | `activeTab` | Capture the visible tab for the screenshot button. |
 
 One ~20-line content script (`context-target.js`) runs on every page, solely to remember
-which element you last right-clicked. It reads nothing else. The full editing script is
-injected only once you activate a mode.
+which element you last right-clicked. It reads nothing else. The full editing engine is
+injected on first activation, or when saved rules need to be restored after navigation.
 
 ## Support
 
@@ -119,7 +126,8 @@ prompts attached to sponsorship.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Working on this with an AI agent? Read
-[AGENTS.md](AGENTS.md) first.
+[AGENTS.md](AGENTS.md) first. The runtime boundaries and state invariants are documented
+in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## License
 

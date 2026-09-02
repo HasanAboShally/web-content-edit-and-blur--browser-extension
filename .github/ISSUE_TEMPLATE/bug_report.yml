@@ -46,6 +46,18 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact
+      description: How much does this prevent you from using the extension?
+      options:
+        - Blocks a core workflow or risks losing/leaking content
+        - Major feature is unusable, but a workaround exists
+        - Minor behavior or visual problem
+    validations:
+      required: true
+
   - type: input
     id: version
     attributes:
@@ -60,3 +72,11 @@ body:
       label: Console errors
       description: Any red errors in DevTools (F12 → Console). Optional, but very helpful.
       render: text
+
+  - type: checkboxes
+    id: latest
+    attributes:
+      label: Basic checks
+      options:
+        - label: I reproduced this with the latest extension version and refreshed the affected page after reloading the extension.
+          required: true

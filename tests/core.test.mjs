@@ -1,38 +1,16 @@
-import { chromium } from 'playwright';
-import os from 'node:os';
-import path from 'node:path';
-import fs from 'node:fs';
+import { setupExtensionTest } from './harness.mjs';
 
-const EXT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const BASE = process.env.CEB_TEST_URL || 'http://localhost:8731';
 const URL_UNDER_TEST = `${BASE}/index.html`;
-const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-profile-'));
-
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push({ name, pass, detail });
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`);
-};
-
-const ctx = await chromium.launchPersistentContext(userDataDir, {
-  channel: 'chromium',
-  headless: true,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+const {
+  ctx, sw, page, tabId, pageErrors, swErrors, results, check, teardown,
+} = await setupExtensionTest({
+  profilePrefix: 'ceb-profile-',
+  initialUrl: URL_UNDER_TEST,
 });
 
-let sw = ctx.serviceWorkers()[0];
-if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 15000 });
-const swErrors = [];
-sw.on('console', (m) => { if (m.type() === 'error') swErrors.push(m.text()); });
 check('service worker registered', !!sw, sw?.url().split('/').pop());
-
-const page = await ctx.newPage();
-const pageErrors = [];
-page.on('pageerror', (e) => pageErrors.push(String(e)));
-await page.goto(URL_UNDER_TEST, { waitUntil: 'load' });
 check('page has an iframe', page.frames().length === 2, `${page.frames().length} frames`);
-
-const tabId = await sw.evaluate(async (u) => (await chrome.tabs.query({ url: u }))[0]?.id ?? null, URL_UNDER_TEST);
 check('found tab from service worker', tabId !== null, `tabId=${tabId}`);
 
 // Same sequence the toolbar-icon click handler runs.
@@ -60,6 +38,19 @@ check('exactly one toolbar in top frame', toolbars === 1, `count=${toolbars}`);
 const frameToolbars = await page.frames()[1].evaluate(() => document.querySelectorAll('#ceb-toolbar').length);
 check('no toolbar inside iframe', frameToolbars === 0, `count=${frameToolbars}`);
 
+// Simulate MV3 waking with an empty in-memory tab record, then race several callers.
+// The existing top-frame listener must be probed rather than reinjected, and all callers
+// must share one initialization flight.
+const repeatedInit = await sw.evaluate(async (id) => {
+  delete tabStates[id];
+  await Promise.all(Array.from({ length: 4 }, () => ensureInitialized(id)));
+  return { mode: tabStates[id]?.mode, inFlight: initializationFlights.size };
+}, tabId);
+const toolbarAfterRepeatedInit = await page.evaluate(() => document.querySelectorAll('#ceb-toolbar').length);
+check('repeated concurrent initialization reuses the live page listener',
+  repeatedInit.mode === 'blur' && repeatedInit.inFlight === 0 && toolbarAfterRepeatedInit === 1,
+  JSON.stringify({ ...repeatedInit, toolbars: toolbarAfterRepeatedInit }));
+
 // Blur two elements, one of which has selector-hostile id/class characters.
 await page.click('#title');
 await page.click('#odd\\.id');
@@ -71,6 +62,23 @@ const filters = await page.evaluate(() => ({
 }));
 check('click in blur mode blurs element', filters.title.includes('blur'), JSON.stringify(filters));
 check('blurs element with awkward id/class chars', filters.odd.includes('blur'), filters.odd);
+
+// One key press must produce one undo. Duplicate bootstrap listeners would consume both
+// actions here; computed styles let the main world verify the result without reaching
+// into the isolated world's lexical state.
+await page.keyboard.press(process.platform === 'darwin' ? 'Meta+z' : 'Control+z');
+await page.waitForFunction(() => [
+  getComputedStyle(document.querySelector('#title')).filter,
+  getComputedStyle(document.querySelector('#odd\\.id')).filter,
+].filter(value => value.includes('blur')).length === 1, null, { timeout: 1500 }).catch(() => {});
+const afterSingleUndo = await page.evaluate(() => [
+  getComputedStyle(document.querySelector('#title')).filter,
+  getComputedStyle(document.querySelector('#odd\\.id')).filter,
+].filter(value => value.includes('blur')).length);
+check('repeated initialization leaves exactly one global input listener', afterSingleUndo === 1,
+  `${afterSingleUndo} blur rule${afterSingleUndo === 1 ? '' : 's'} after one undo`);
+await page.click('#ceb-btn-redo');
+await page.waitForTimeout(300);
 
 const saved = await readStored();
 const savedBlurs = (saved?.rules || []).filter(r => r.kind === 'blur');
@@ -102,9 +110,52 @@ const restored = await page.evaluate(() => ({
 check('auto-restores blur after reload', restored.title.includes('blur') && restored.odd.includes('blur'), JSON.stringify(restored));
 check('auto-restores hide after reload', restored.cardHidden === 'hidden', restored.cardHidden);
 
-// Drawn blur area must scroll with the document.
+// Area is a target, not a peer tool. "Draw" was mistaken for freehand annotation;
+// Blur/Redact are effects, while Element/Area decides how that effect is targeted.
 check('activate draw mode', (await activate('draw')) === 'ok');
 await page.waitForTimeout(800);
+const areaUi = await page.evaluate(() => {
+  return {
+    groups: [...document.querySelectorAll('.ceb-toolbar-body > .ceb-tb-section > .ceb-tb-section-label')]
+      .slice(0, 3).map(item => item.textContent),
+    content: [...document.querySelectorAll('.ceb-content-grid .ceb-tb-label')]
+      .map(item => item.textContent),
+    privacy: [...document.querySelectorAll('.ceb-privacy-grid .ceb-tb-label')]
+      .map(item => item.textContent),
+    hasPeerDrawTool: Boolean(document.querySelector('.ceb-tb-btn[data-mode="draw"]')),
+    targetLabel: document.querySelector('#ceb-privacy-target > .ceb-tb-section-label')?.textContent,
+    targets: [...document.querySelectorAll('#ceb-target-seg .ceb-seg-btn')]
+      .map(item => item.textContent),
+    targetActive: document.querySelector('#ceb-target-seg .ceb-seg-btn.active')?.dataset.target,
+    effectActive: document.querySelector('.ceb-privacy-grid .ceb-tb-btn.active')?.dataset.mode,
+    hint: document.querySelector('#ceb-mode-indicator')?.textContent,
+  };
+});
+check('toolbar groups Content separately from Privacy effects',
+  JSON.stringify(areaUi.groups.slice(0, 2)) === JSON.stringify(['Content', 'Privacy'])
+    && JSON.stringify(areaUi.content) === JSON.stringify(['Edit', 'Annotate'])
+    && JSON.stringify(areaUi.privacy) === JSON.stringify(['Blur', 'Hide', 'Redact']),
+  JSON.stringify(areaUi));
+check('Area is a target choice rather than a peer tool',
+  !areaUi.hasPeerDrawTool && areaUi.targetLabel === 'Target'
+    && JSON.stringify(areaUi.targets) === JSON.stringify(['Element', 'Area'])
+    && areaUi.targetActive === 'area' && areaUi.effectActive === 'blur',
+  JSON.stringify(areaUi));
+check('Area points freehand users to Annotate Pen',
+  /freehand.*Annotate.*Pen/i.test(areaUi.hint), JSON.stringify(areaUi));
+const areaBadge = await sw.evaluate(async (id) => chrome.action.getBadgeText({ tabId: id }), tabId);
+check('browser badge also calls the mode Area', areaBadge === 'Area', areaBadge);
+
+await page.click('#ceb-target-seg .ceb-seg-btn[data-target="element"]');
+await page.waitForTimeout(300);
+const elementTargetMode = await page.evaluate(() => document.body.classList.contains('ceb-mode-blur'));
+check('Element target returns Blur to element picking', elementTargetMode);
+await page.click('#ceb-target-seg .ceb-seg-btn[data-target="area"]');
+await page.waitForTimeout(300);
+const areaTargetMode = await page.evaluate(() => document.body.classList.contains('ceb-mode-draw'));
+check('Area target returns Blur to rectangle selection', areaTargetMode);
+
+// Rectangular blur area must scroll with the document.
 await page.mouse.move(200, 300);
 await page.mouse.down();
 await page.mouse.move(420, 430, { steps: 8 });
@@ -115,7 +166,7 @@ const areaBefore = await page.evaluate(() => {
   const el = document.querySelector('.ceb-blur-area');
   return el ? { top: el.getBoundingClientRect().top, position: getComputedStyle(el).position } : null;
 });
-check('draw created a blur area', !!areaBefore, JSON.stringify(areaBefore));
+check('Area created a blur region', !!areaBefore, JSON.stringify(areaBefore));
 check('blur area is absolutely positioned', areaBefore?.position === 'absolute', areaBefore?.position);
 
 await page.evaluate(() => window.scrollTo(0, 400));
@@ -128,11 +179,11 @@ check('blur area scrolls with the page', areaBefore && areaAfter !== null && Mat
   `before=${areaBefore?.top} after=${areaAfter}`);
 await page.evaluate(() => window.scrollTo(0, 0));
 
-// Drawn area survives a reload and is not duplicated by a second restore.
+// The area survives a reload and is not duplicated by a second restore.
 await page.reload({ waitUntil: 'load' });
 await page.waitForTimeout(2000);
 let areaCount = await page.evaluate(() => document.querySelectorAll('.ceb-blur-area').length);
-check('drawn area restored after reload', areaCount === 1, `count=${areaCount}`);
+check('area restored after reload', areaCount === 1, `count=${areaCount}`);
 
 const savedNow = await readStored();
 await sw.evaluate(async ({ id, changes }) => {
@@ -164,7 +215,7 @@ check('reset actually un-blurs after reload', !afterReset.filter.includes('blur'
 check('no uncaught page errors', pageErrors.length === 0, pageErrors.slice(0, 3).join(' | '));
 check('no service worker errors', swErrors.length === 0, swErrors.slice(0, 3).join(' | '));
 
-await ctx.close();
+await teardown();
 const failed = results.filter(r => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);
 process.exit(failed.length ? 1 : 0);

@@ -4,33 +4,39 @@ Guidance for AI agents (and humans) working in this repo. Read this before editi
 
 ## What this is
 
-A Manifest V3 browser extension for Chrome, Firefox and Edge. **No build step, no
-framework, no TypeScript** — plain ES2020 that ships exactly as written. Do not introduce
-a bundler or a dependency without a strong reason; `playwright` is the only devDependency
-and it exists purely for tests.
+A Manifest V3 browser extension for Chrome, Firefox and Edge. **No build step, framework
+or TypeScript runtime source** — plain ES2020 ships exactly as written. Do not introduce a
+bundler or runtime dependency without a strong reason. `playwright` drives browser tests;
+`typescript` performs strict, no-emit JSDoc checks on a deliberately small source subset.
 
-| File | Lines | Role |
-|---|---|---|
-| `page-code.js` | ~3,800 | The entire UI and editing engine. Injected on demand. |
-| `background.js` | ~450 | Service worker: storage, context menus, commands, screenshots. |
-| `context-target.js` | ~24 | Runs on every page. Remembers the last right-clicked element. Nothing else. |
-| `page-style.css` | ~90 | Styles for injected UI. |
-| `scripts/check.mjs` | | 12 static checks. Fast, no browser. |
-| `scripts/build.mjs` | | `node scripts/build.mjs <chrome\|firefox\|edge> <version>` → `dist/*.zip`. |
-| `scripts/publish.mjs` | | Uploads to all three stores via their REST APIs. `--dry-run` verifies credentials without publishing. |
-| `scripts/preflight.mjs` | | Tag, `manifest.json`, `package.json` and `CHANGELOG.md` must agree before a release. |
-| `scripts/verify-packages.mjs` | | Asserts the built ZIPs contain exactly the expected files and the right manifest per browser. |
-| `tests/` | | 8 suites, 178 assertions. 6 drive real headed Chromium; the publishing suites stub external APIs. |
-| `store-assets/` | | Source icon, shared listing copy and five store screenshots. Not packaged with the extension. |
+| Path | Role |
+|---|---|
+| `page/*.js` | UI and editing engine. Injected together in `page/modules.json` order; each stays below the reviewability ceiling. |
+| `page/main.js` | Idempotent bootstrap and page event dispatch. Must load last. |
+| `page/styles/*.css` | Page effects and extension UI. Injected together in `page/styles.json` order; each stays below the reviewability ceiling. |
+| `background.js` | Service worker: storage, context menus, commands, screenshots and page injection. |
+| `context-target.js` | Runs on every page. Remembers the last right-clicked element. Nothing else. |
+| `scripts/check.mjs` | Fast cross-file and package-invariant checks; no browser. |
+| `scripts/build.mjs` | `node scripts/build.mjs <chrome\|firefox\|edge> <version>` → `dist/*.zip`. |
+| `scripts/publish.mjs` | Uploads to all three stores via their REST APIs. `--dry-run` verifies credentials without publishing. |
+| `scripts/preflight.mjs` | Tag, `manifest.json`, `package.json` and `CHANGELOG.md` must agree before a release. |
+| `scripts/verify-packages.mjs` | Asserts the built ZIPs contain exactly the expected files and the right manifest per browser. |
+| `tests/` | Browser suites plus publishing and OAuth suites that stub external APIs. |
+| `store-assets/` | Source icon, shared listing copy and store screenshots. Not packaged with the extension. |
 
 ## Golden rules
 
-1. **`page-code.js` is a single ~3,800-line IIFE.** Line numbers in any note, summary or
-   plan go stale immediately. **Always `grep` for the function name**, never navigate by
-   remembered line number.
-2. **Run both gates before claiming done:** `npm run check` (12 static checks) and
-  `npm test` (178 assertions). CI runs both.
-3. **State is the source of truth; the DOM is derived.** Mutate `state`, then call
+1. **The scripts under `page/` are one ordered classic-script program.** Their top-level
+  declarations share an isolated-world lexical scope. Keep `page/modules.json`
+  authoritative, keep `page/main.js` last, and put long-lived bootstrap side effects
+  there only. **Always `grep` for the function name**, never navigate by a remembered
+  line number.
+2. **The styles under `page/styles/` are one ordered cascade.** Keep `page/styles.json`
+  as the sole ordering authority and `page/styles/toolbar-system.css` last. Runtime loads
+  the listed files directly; do not add `@import`, concatenation or generated CSS.
+3. **Run all gates before claiming done:** `npm run typecheck`, `npm run check` and
+  `npm test`. CI runs all three.
+4. **State is the source of truth; the DOM is derived.** Mutate `state`, then call
    `renderState()`, which wipes and re-applies everything. This is what makes undo/redo,
    cross-tab sync and reload-restore work for free. Never hand-patch the DOM as a
    shortcut — it will desynchronise from history.
@@ -38,11 +44,17 @@ and it exists purely for tests.
 ## Commands
 
 ```bash
-npm run check                          # 12 static checks, ~1s, no browser
-npm test                               # all 7 suites (several minutes)
-CEB_ONLY=markup.test.mjs npm test      # one suite while developing
+npm run typecheck                      # strict no-emit JSDoc check of model + geometry
+npm run check                          # fast static checks, no browser
+npm test                               # all 9 suites (several minutes)
+npm test -- --suite markup.test.mjs    # one suite, portable across shells
+npm run validate                       # all required gates
+npm run test:firefox                   # strict lint + real Firefox package install
 npm run build:all                      # all three ZIPs, then verify their contents
-node scripts/build.mjs chrome 2.3.0    # → dist/content-edit-blur-chrome-2.3.0.zip
+npm run screenshots:store             # regenerate five reproducible store screenshots
+npm run assets:release                 # store screenshots + website social card
+npm run release:check                  # media, all gates, Firefox, packages, preflight
+node scripts/build.mjs chrome 2.4.0    # → dist/content-edit-blur-chrome-2.4.0.zip
 node scripts/publish.mjs all --dry-run # check store credentials, upload nothing
 ```
 
@@ -70,18 +82,31 @@ look correct in isolation but disagree. Every one was added after such a bug shi
 - manifest parses; every JS file parses; every build script in `scripts/` parses; every
   referenced file exists; every mode has both icon sizes; manifest version matches
   `package.json`.
+- `page/modules.json` contains the exact page script set, has no duplicates, keeps
+  `page/main.js` last, and every module stays below 900 lines. Non-main modules may not
+  install long-lived listeners, timers or observers at top level.
+- `jsconfig.typecheck.json` keeps strict JSDoc checking limited to `page/model.js` and
+  `page/geometry.js`, treats them as classic scripts, emits nothing, and forbids
+  `@ts-nocheck`. Expand that list only with a cleanly annotated runtime file.
+- `page/styles.json` contains the exact CSS module set and preserves cascade order.
+  Every style stays below 900 lines, `@import` is forbidden, the legacy root stylesheet
+  stays absent, and the background injects the canonical list before page scripts.
+- `package-lock.json` agrees with package metadata, and public contributor guidance links
+  the architecture without using retired file names or UI terminology.
 - **At most 4 commands declare a `suggested_key`.** Chrome silently rejects *the entire
   manifest* past four — the extension simply fails to load with no useful error.
 - `restoreFromStorage` merges rather than overwrites state.
 - `flushChanges` omits an unloaded site scope.
-- **Both emptiness checks agree.** `background.js`'s `hasChanges()` and `page-code.js`'s
+- **Both emptiness checks agree.** `background.js`'s `hasChanges()` and `page/model.js`'s
   `isEmptyPayload` are independent predicates over the same collections. When annotations
   were added, `hasChanges()` didn't know about them, so a page whose only content was a
   kept annotation was judged empty and its storage key was **deleted**.
-- **Every background message goes through `sendToBackground()`.** `chrome.runtime.sendMessage`
-  throws *synchronously* when the extension context is invalidated (reload/update with a
-  tab still open), which killed unrelated code paths.
-- The `PRO_ANNOTATE_TOOLS` constant matches the `ceb-pro-only` toolbar buttons.
+- **Every post-bootstrap page-side runtime/storage operation goes through
+  `callExtensionApi()`.** Runtime messages use `sendToBackground()` and storage uses
+  `readStorage()` / `writeStorage()`. These operations can throw *synchronously* when the
+  extension context is invalidated. Listener registration happens once in `page/main.js`
+  during guarded bootstrap.
+- The `ADVANCED_ANNOTATE_TOOLS` constant matches the `ceb-advanced-only` toolbar buttons.
 
 **Adding a check?** Verify it by deliberately breaking the thing it guards and confirming
 it fails, then restore. A check that has never gone red proves nothing.
@@ -142,7 +167,9 @@ real suite showed undo removing one mark *and simultaneously restoring another* 
 - Update `CHANGELOG.md` and bump both `manifest.json` and `package.json` together (a static
   check enforces the pair).
 - Commit messages: imperative mood, one logical change. Include:
-  ```
+
+  ```text
   Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
   ```
+
 - Don't commit `dist/` (gitignored) or test scratch files.

@@ -22,13 +22,13 @@ body:
   - type: dropdown
     id: mode
     attributes:
-      label: Where does this belong?
+      label: Which experience should include this?
       description: >
-        The toolbar has a Simple mode (the essentials) and a Pro mode (power features).
-        Keeping Simple mode simple is a deliberate goal.
+        Essentials contains common workflows. Advanced contains higher-risk or
+        administrative features such as Redact, site rules and import/export.
       options:
-        - Simple mode — most people would use this
-        - Pro mode — powerful but niche
+        - Essentials — common and broadly useful
+        - Advanced — powerful, higher-risk, or administrative
         - Not sure
     validations:
       required: true

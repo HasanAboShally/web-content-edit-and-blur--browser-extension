@@ -36,11 +36,11 @@ Use it to prepare product mockups, communicate design changes, hide names or acc
 
 Blur is useful for visual de-emphasis. For sensitive screenshots, use Redact, which paints an opaque block over the rendered content.
 
-Simple mode keeps the common tools focused. Pro mode reveals redaction, advanced annotations, site-wide scope, the rules panel, export/import and more. Both modes are included.
+Essentials includes the everyday workflow, including Redo, boxes and freehand drawing. Advanced adds redaction, numbered Steps, site-wide scope, the rules panel and export/import. Everything is included.
 
 PRIVACY BY DESIGN
 
-Content Edit & Blur works entirely offline. It does not collect data, use analytics or send page content to external servers. Saved changes remain in local browser storage. Annotations are session-only by default unless you choose Keep after reload.
+Content Edit & Blur works entirely offline. It does not collect data, use analytics or send page content to external servers. Remembered changes remain in local browser storage. Annotations are session-only by default unless you choose Save annotations too.
 
 Open source:
 https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension
@@ -66,7 +66,7 @@ https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/
 2. `screenshots/02-blur-and-redact.png`
    Caption: Blur and redact sensitive details
 3. `screenshots/03-draw-to-blur.png`
-   Caption: Draw blur areas anywhere on the page
+   Caption: Add, move and resize blur or redact areas anywhere on the page
 4. `screenshots/04-annotate-and-highlight.png`
    Caption: Highlight, annotate and number each step
 5. `screenshots/05-rules-and-site-scope.png`
@@ -88,9 +88,10 @@ https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/
 - Edge: Productivity
 - Firefox: Web Development, Appearance
 
-## Version 2.3.0 highlights
+## Version 2.4.0 highlights
 
-- Highlighter with a chisel tip and multiply blending
-- Numbered step badges that renumber after deletion
-- Move and resize annotations
-- Improved annotation hit testing and click-through behavior
+- Redesigned always-light toolbar with clearer Content and Privacy groups
+- Direct Soft and Strong blur controls for elements and Areas
+- Select, move, resize, restyle or explicitly remove privacy Areas and annotations
+- Essentials and Advanced views replace the misleading Simple and Pro labels
+- More reliable toolbar positioning, persistence controls and extension-reload recovery

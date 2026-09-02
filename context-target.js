@@ -7,7 +7,7 @@
 // listening and the first use of the menu item would silently do nothing.
 //
 // Content scripts belonging to the same extension share one isolated world per
-// frame, so page-code.js can read window.__cebLastContextTarget directly.
+// frame, so the scripts under page/ can read window.__cebLastContextTarget directly.
 (function () {
   if (window.__cebContextTrackerInstalled) return;
   window.__cebContextTrackerInstalled = true;

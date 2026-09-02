@@ -1,39 +1,16 @@
 // Feature tests for the v2.1 additions: redaction, smart picker, undo/redo,
-// site-scoped rules, export/import, and the Simple/Pro split.
-import { chromium } from 'playwright';
-import os from 'node:os';
-import path from 'node:path';
-import fs from 'node:fs';
+// site-scoped rules, export/import, and the Essentials/Advanced split.
+import { setupExtensionTest } from './harness.mjs';
 
-const EXT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const BASE = process.env.CEB_TEST_URL || 'http://localhost:8731';
 const URL1 = `${BASE}/index.html`;
 const URL2 = `${BASE}/page2.html`;
-const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-feat-'));
-
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push({ name, pass, detail });
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`);
-};
-
-const ctx = await chromium.launchPersistentContext(userDataDir, {
-  channel: 'chromium',
-  headless: true,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+const {
+  sw, page, tabId, pageErrors, swErrors, results, check, teardown,
+} = await setupExtensionTest({
+  profilePrefix: 'ceb-feat-',
+  initialUrl: URL1,
 });
-
-let sw = ctx.serviceWorkers()[0];
-if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 15000 });
-const swErrors = [];
-sw.on('console', (m) => { if (m.type() === 'error') swErrors.push(m.text()); });
-
-const page = await ctx.newPage();
-const pageErrors = [];
-page.on('pageerror', (e) => pageErrors.push(String(e)));
-await page.goto(URL1, { waitUntil: 'load' });
-
-const tabId = await sw.evaluate(async (u) => (await chrome.tabs.query({ url: u }))[0]?.id ?? null, URL1);
 
 const activate = (mode) => sw.evaluate(async ({ id, mode }) => {
   try { await ensureInitialized(id); await switchMode(id, mode); return 'ok'; }
@@ -47,6 +24,14 @@ const siteKey = `site_${BASE}`;
 // ---------- Redaction ----------
 check('activate redact mode', (await activate('redact')) === 'ok');
 await page.waitForTimeout(1000);
+const externalRedactUi = await page.evaluate(() => ({
+  view: document.querySelector('#ceb-toolbar')?.dataset.ui,
+  visible: getComputedStyle(document.querySelector('.ceb-tb-btn[data-mode="redact"]')).display,
+  active: document.querySelector('.ceb-tb-btn[data-mode="redact"]')?.classList.contains('active'),
+}));
+check('an external Redact activation reveals its Advanced control',
+  externalRedactUi.view === 'advanced' && externalRedactUi.visible !== 'none' && externalRedactUi.active,
+  JSON.stringify(externalRedactUi));
 await page.click('#title');
 await page.waitForTimeout(500);
 
@@ -151,36 +136,93 @@ const parentBlurred = await page.evaluate(() =>
 check('Enter applies to the traversed ancestor, not the leaf',
   parentBlurred.includes('blur'), parentBlurred);
 
-// ---------- Escape exits mode ----------
+// ---------- Escape deselects, then exits mode ----------
+await page.keyboard.press('Escape');
+await page.waitForTimeout(400);
+const modeAfterDeselect = await page.evaluate(() => ({
+  mode: [...document.body.classList].filter(c => c.startsWith('ceb-mode-')).join(','),
+  selectionHidden: document.querySelector('#ceb-privacy-selection')?.hidden,
+}));
+check('Escape first deselects the privacy effect',
+  modeAfterDeselect.mode.includes('ceb-mode-blur') && modeAfterDeselect.selectionHidden,
+  JSON.stringify(modeAfterDeselect));
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
 const modeAfterEsc = await page.evaluate(() =>
   [...document.body.classList].filter(c => c.startsWith('ceb-mode-')).join(','));
-check('Escape returns to idle', modeAfterEsc.includes('ceb-mode-idle'), modeAfterEsc);
+check('a second Escape returns to idle', modeAfterEsc.includes('ceb-mode-idle'), modeAfterEsc);
 
 // ---------- Site-scoped rules ----------
 await page.evaluate(() => {
-  const seg = document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="pro"]');
+  const seg = document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="advanced"]');
   seg?.click();
 });
 await page.waitForTimeout(300);
-const proVisible = await page.evaluate(() =>
+const advancedVisible = await page.evaluate(() =>
   document.querySelector('#ceb-toolbar')?.getAttribute('data-ui'));
-check('Pro toggle switches the toolbar', proVisible === 'pro', String(proVisible));
+check('Advanced toggle switches the toolbar', advancedVisible === 'advanced', String(advancedVisible));
 
 const redactBtnShown = await page.evaluate(() => {
   const b = document.querySelector('.ceb-tb-btn[data-mode="redact"]');
   return b ? getComputedStyle(b).display !== 'none' : false;
 });
-check('Redact button is visible in Pro', redactBtnShown);
+check('Redact button is visible in Advanced', redactBtnShown);
 
-await page.evaluate(() => {
-  document.querySelector('#ceb-scope-seg .ceb-seg-btn[data-scope="site"]')?.click();
-});
+check('activate Area targeting', (await activate('draw')) === 'ok');
+await page.waitForTimeout(500);
+await page.click('.ceb-tb-btn[data-mode="redact"]');
+await page.waitForTimeout(300);
+const redactArea = await page.evaluate(() => ({
+  areaMode: document.body.classList.contains('ceb-mode-draw'),
+  effect: document.querySelector('.ceb-privacy-grid .ceb-tb-btn.active')?.dataset.mode,
+  target: document.querySelector('#ceb-target-seg .ceb-seg-btn.active')?.dataset.target,
+  hint: document.querySelector('#ceb-mode-indicator')?.textContent,
+}));
+check('choosing Redact preserves Area targeting',
+  redactArea.areaMode && redactArea.effect === 'redact' && redactArea.target === 'area'
+    && /redact an area/i.test(redactArea.hint),
+  JSON.stringify(redactArea));
+
+await page.click('#ceb-ui-seg .ceb-seg-btn[data-ui="essentials"]');
+await page.waitForTimeout(300);
+const essentialsArea = await page.evaluate(() => ({
+  areaMode: document.body.classList.contains('ceb-mode-draw'),
+  effect: document.querySelector('.ceb-privacy-grid .ceb-tb-btn.active')?.dataset.mode,
+  redactDisplay: getComputedStyle(document.querySelector('.ceb-tb-btn[data-mode="redact"]')).display,
+  redoDisplay: getComputedStyle(document.querySelector('#ceb-btn-redo')).display,
+  hint: document.querySelector('#ceb-mode-indicator')?.textContent,
+}));
+check('Essentials never leaves a hidden Redact area effect active',
+  essentialsArea.areaMode && essentialsArea.effect === 'blur'
+    && essentialsArea.redactDisplay === 'none' && /blur an area/i.test(essentialsArea.hint),
+  JSON.stringify(essentialsArea));
+check('Redo remains available in Essentials', essentialsArea.redoDisplay !== 'none', JSON.stringify(essentialsArea));
+await page.click('#ceb-ui-seg .ceb-seg-btn[data-ui="advanced"]');
 await page.waitForTimeout(300);
 
 check('activate hide mode for site rule', (await activate('hide')) === 'ok');
 await page.waitForTimeout(600);
+const scopeVisible = await page.evaluate(() => {
+  const scope = document.querySelector('#ceb-scope-tools');
+  return scope ? !scope.hidden && getComputedStyle(scope).display !== 'none' : false;
+});
+check('rule scope appears only after choosing a scoped tool', scopeVisible);
+await page.click('#ceb-scope-seg .ceb-seg-btn[data-scope="site"]');
+await page.waitForTimeout(300);
+await page.click('#ceb-ui-seg .ceb-seg-btn[data-ui="essentials"]');
+await page.waitForTimeout(300);
+const essentialsScope = {
+  stored: await readKey('defaultScope'),
+  active: await page.evaluate(() =>
+    document.querySelector('#ceb-scope-seg .ceb-seg-btn.active')?.dataset.scope),
+};
+check('Essentials resets invisible site scope to This page',
+  essentialsScope.stored === 'page' && essentialsScope.active === 'page',
+  JSON.stringify(essentialsScope));
+await page.click('#ceb-ui-seg .ceb-seg-btn[data-ui="advanced"]');
+await page.waitForTimeout(300);
+await page.click('#ceb-scope-seg .ceb-seg-btn[data-scope="site"]');
+await page.waitForTimeout(300);
 await page.click('#bottom');
 await page.waitForTimeout(700);
 
@@ -248,7 +290,7 @@ check('import re-applies blur', afterImport.card.includes('blur'), afterImport.c
 await activate('blur');
 await page.waitForTimeout(900);
 const panelRows = await page.evaluate(() => {
-  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="pro"]')?.click();
+  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="advanced"]')?.click();
   document.querySelector('#ceb-rules-toggle')?.click();
   return document.querySelectorAll('#ceb-rules-list .ceb-rule').length;
 });
@@ -263,20 +305,60 @@ const deletedOk = await page.evaluate(async () => {
 check('deleting a rule from the panel removes it',
   deletedOk.after === deletedOk.before - 1, JSON.stringify(deletedOk));
 
-// ---------- Simple mode hides Pro affordances ----------
-const simpleHidden = await page.evaluate(async () => {
-  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="simple"]')?.click();
+// ---------- Essentials hides only Advanced affordances ----------
+const essentialsHidden = await page.evaluate(async () => {
+  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="essentials"]')?.click();
   await new Promise(r => setTimeout(r, 300));
-  const b = document.querySelector('.ceb-tb-btn[data-mode="redact"]');
-  return b ? getComputedStyle(b).display : 'missing';
+  return {
+    redact: getComputedStyle(document.querySelector('.ceb-tb-btn[data-mode="redact"]')).display,
+    rules: getComputedStyle(document.querySelector('#ceb-rules-toggle').parentElement).display,
+    redo: getComputedStyle(document.querySelector('#ceb-btn-redo')).display,
+  };
 });
-check('Simple mode hides the Redact button', simpleHidden === 'none', simpleHidden);
+check('Essentials hides Redact and rule management but keeps Redo',
+  essentialsHidden.redact === 'none' && essentialsHidden.rules === 'none'
+    && essentialsHidden.redo !== 'none',
+  JSON.stringify(essentialsHidden));
+
+// Existing installs store the old Simple/Pro names. Preserve their chosen density,
+// while stripping Advanced-only state that would otherwise be invisible in Essentials.
+await sw.evaluate(async () => chrome.storage.local.set({ uiMode: 'pro' }));
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(1800);
+await activate('blur');
+await page.waitForTimeout(700);
+const migratedPro = {
+  view: await page.evaluate(() => document.querySelector('#ceb-toolbar')?.dataset.ui),
+  stored: await readKey('uiMode'),
+};
+check('legacy Pro preference migrates to Advanced',
+  migratedPro.view === 'advanced' && migratedPro.stored === 'advanced',
+  JSON.stringify(migratedPro));
+
+await sw.evaluate(async () => chrome.storage.local.set({
+  uiMode: 'simple', defaultScope: 'site', drawKind: 'redact', annotateTool: 'step'
+}));
+await page.reload({ waitUntil: 'load' });
+await page.waitForTimeout(1800);
+await activate('annotate');
+await page.waitForTimeout(700);
+const migratedSimple = {
+  view: await page.evaluate(() => document.querySelector('#ceb-toolbar')?.dataset.ui),
+  uiMode: await readKey('uiMode'),
+  scope: await readKey('defaultScope'),
+  areaEffect: await readKey('drawKind'),
+  annotateTool: await readKey('annotateTool'),
+};
+check('legacy Simple preference migrates to safe Essentials defaults',
+  migratedSimple.view === 'essentials' && migratedSimple.uiMode === 'essentials'
+    && migratedSimple.scope === 'page' && migratedSimple.areaEffect === 'blur'
+    && migratedSimple.annotateTool === 'arrow',
+  JSON.stringify(migratedSimple));
 
 check('no uncaught page errors', pageErrors.length === 0, pageErrors.join(' | '));
 check('no service worker errors', swErrors.length === 0, swErrors.join(' | '));
 
 const passed = results.filter(r => r.pass).length;
 console.log(`\n${passed}/${results.length} passed`);
-await ctx.close();
-fs.rmSync(userDataDir, { recursive: true, force: true });
+await teardown();
 process.exit(passed === results.length ? 0 : 1);

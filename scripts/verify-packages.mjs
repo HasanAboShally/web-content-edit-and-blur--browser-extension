@@ -11,7 +11,7 @@
  * Usage:
  *   node scripts/verify-packages.mjs [version]
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { FIREFOX_GECKO_ID } from './store-ids.mjs';
@@ -22,11 +22,88 @@ const version = process.argv[2] ?? JSON.parse(
 ).version;
 
 const TARGETS = ['chrome', 'firefox', 'edge'];
-const REQUIRED = ['manifest.json', 'background.js', 'page-code.js', 'page-style.css', 'context-target.js'];
-const ALLOWED = new RegExp(`^(?:${REQUIRED.join('|').replace(/\./g, '\\.')}|images/.*)$`);
-const FORBIDDEN = /(?:^|\/)(?:popup\.html|popup\.css|popup\.js)$/;
+const PAGE_SCRIPT_FILES = JSON.parse(readFileSync(path.join(root, 'page/modules.json'), 'utf8'));
+const PAGE_STYLE_FILES = JSON.parse(readFileSync(path.join(root, 'page/styles.json'), 'utf8'));
+const ROOT_FILES = ['manifest.json', 'background.js', 'context-target.js'];
+
+function validateOrderedFiles(files, manifestPath, pattern, finalFile) {
+  if (!Array.isArray(files) || !files.length) {
+    throw new Error(`${manifestPath} must be a non-empty ordered list`);
+  }
+  if (new Set(files).size !== files.length) {
+    throw new Error(`${manifestPath} contains duplicate entries`);
+  }
+  const invalid = files.filter(file => typeof file !== 'string' || !pattern.test(file));
+  if (invalid.length) throw new Error(`${manifestPath} has invalid entries: ${invalid.join(', ')}`);
+  if (finalFile && files.at(-1) !== finalFile) {
+    throw new Error(`${manifestPath} must end with ${finalFile}`);
+  }
+}
+
+validateOrderedFiles(PAGE_SCRIPT_FILES, 'page/modules.json', /^page\/[a-z-]+\.js$/, 'page/main.js');
+validateOrderedFiles(
+  PAGE_STYLE_FILES,
+  'page/styles.json',
+  /^page\/styles\/[a-z-]+\.css$/,
+  'page/styles/toolbar-system.css',
+);
+
+function filesUnder(relativeDirectory) {
+  const directory = path.join(root, relativeDirectory);
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name.startsWith('.') || entry.name === '__MACOSX') return [];
+    const relative = `${relativeDirectory}/${entry.name}`;
+    return entry.isDirectory() ? filesUnder(relative) : [relative];
+  });
+}
+
+const REQUIRED = [
+  ...ROOT_FILES,
+  'page/modules.json',
+  'page/styles.json',
+  ...PAGE_SCRIPT_FILES,
+  ...PAGE_STYLE_FILES,
+  ...filesUnder('images'),
+].sort();
+const REQUIRED_SET = new Set(REQUIRED);
 
 const problems = [];
+
+if (existsSync(path.join(root, 'page-style.css'))) {
+  problems.push('source tree still contains the removed root page-style.css');
+}
+
+const expectedPageEntries = [
+  'modules.json',
+  'styles',
+  'styles.json',
+  ...PAGE_SCRIPT_FILES.map(file => path.basename(file)),
+].sort();
+const actualPageEntries = readdirSync(path.join(root, 'page')).sort();
+if (JSON.stringify(actualPageEntries) !== JSON.stringify(expectedPageEntries)) {
+  problems.push(
+    `page/ should contain exactly [${expectedPageEntries.join(', ')}], `
+      + `found [${actualPageEntries.join(', ')}]`,
+  );
+}
+
+const expectedStyleEntries = [...PAGE_STYLE_FILES].sort();
+const actualStyleEntries = readdirSync(path.join(root, 'page/styles'), { withFileTypes: true })
+  .map(entry => `page/styles/${entry.name}${entry.isFile() ? '' : '/'}`)
+  .sort();
+if (JSON.stringify(actualStyleEntries) !== JSON.stringify(expectedStyleEntries)) {
+  problems.push(
+    `page/styles/ should contain exactly [${expectedStyleEntries.join(', ')}], `
+      + `found [${actualStyleEntries.join(', ')}]`,
+  );
+}
+
+for (const styleFile of PAGE_STYLE_FILES) {
+  const source = readFileSync(path.join(root, styleFile), 'utf8');
+  const lines = source.split('\n').length;
+  if (lines >= 900) problems.push(`${styleFile} has ${lines} lines; CSS modules must stay below 900`);
+  if (/@import\b/i.test(source)) problems.push(`${styleFile} uses forbidden @import`);
+}
 
 function unzip(file, flags, members = []) {
   const result = spawnSync('unzip', [...flags, file, ...members], { encoding: 'utf8' });
@@ -43,21 +120,28 @@ for (const target of TARGETS) {
   }
 
   const entries = unzip(file, ['-Z1']).split('\n').map((s) => s.trim()).filter(Boolean);
+  const packagedFiles = entries.filter((entry) => !entry.endsWith('/')).sort();
 
   for (const required of REQUIRED) {
-    if (!entries.includes(required)) problems.push(`${rel} is missing ${required}`);
+    if (!packagedFiles.includes(required)) problems.push(`${rel} is missing ${required}`);
   }
-  if (!entries.some((e) => e.startsWith('images/'))) {
-    problems.push(`${rel} contains no images/`);
-  }
-  for (const entry of entries) {
-    if (FORBIDDEN.test(entry)) problems.push(`${rel} contains a removed popup file: ${entry}`);
-    else if (!ALLOWED.test(entry) && !entry.endsWith('/')) problems.push(`${rel} has an unexpected entry: ${entry}`);
+  for (const entry of packagedFiles) {
+    if (!REQUIRED_SET.has(entry)) problems.push(`${rel} has an unexpected entry: ${entry}`);
   }
 
   const manifest = JSON.parse(unzip(file, ['-p'], ['manifest.json']));
   if (manifest.version !== version) {
     problems.push(`${rel} declares version ${manifest.version}, expected ${version}`);
+  }
+
+  const packagedOrder = JSON.parse(unzip(file, ['-p'], ['page/modules.json']));
+  if (JSON.stringify(packagedOrder) !== JSON.stringify(PAGE_SCRIPT_FILES)) {
+    problems.push(`${rel} page/modules.json has the wrong files or order`);
+  }
+
+  const packagedStyleOrder = JSON.parse(unzip(file, ['-p'], ['page/styles.json']));
+  if (JSON.stringify(packagedStyleOrder) !== JSON.stringify(PAGE_STYLE_FILES)) {
+    problems.push(`${rel} page/styles.json has the wrong files or order`);
   }
 
   // The two manifests genuinely differ, and the difference is easy to break
@@ -75,6 +159,10 @@ for (const target of TARGETS) {
           `expected ${FIREFOX_GECKO_ID} — AMO would not match it to the listing`,
       );
     }
+    const dataCollection = manifest.browser_specific_settings?.gecko?.data_collection_permissions;
+    if (JSON.stringify(dataCollection?.required) !== JSON.stringify(['none'])) {
+      problems.push(`${rel} must declare gecko.data_collection_permissions.required as ["none"]`);
+    }
   } else {
     if (manifest.background?.service_worker !== 'background.js') {
       problems.push(`${rel} should use background.service_worker`);
@@ -84,7 +172,7 @@ for (const target of TARGETS) {
     }
   }
 
-  console.log(`  ${rel} — ${entries.length} entries, manifest ${manifest.version}`);
+  console.log(`  ${rel} — ${packagedFiles.length} files, manifest ${manifest.version}`);
 }
 
 if (problems.length) {

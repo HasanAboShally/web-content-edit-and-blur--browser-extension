@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northstar launch dashboard</title>
+<style>
+:root {
+  color-scheme: light;
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #172126;
+  background: #f5f7f7;
+}
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 1100px; min-height: 800px; background: #f5f7f7; }
+button, input { font: inherit; }
+.shell { display: grid; grid-template-columns: 218px minmax(0, 1fr); min-height: 800px; }
+.sidebar {
+  position: relative;
+  padding: 26px 20px;
+  color: #d8e0e2;
+  background: #172229;
+}
+.brand { display: flex; align-items: center; gap: 12px; color: #fff; font-weight: 750; }
+.brand-mark {
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px;
+  color: #172229; background: #ff6b35; font-weight: 900;
+}
+.nav-label { margin: 38px 0 10px; color: #89989d; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
+.nav { display: grid; gap: 6px; }
+.nav a { padding: 11px 12px; border-radius: 7px; color: #aebbc0; font-size: 14px; text-decoration: none; }
+.nav a.active { color: #fff; background: #2d3a41; font-weight: 650; }
+.workspace { position: absolute; inset: auto 20px 22px; padding-top: 18px; border-top: 1px solid #35434a; }
+.workspace strong { display: block; color: #fff; font-size: 13px; }
+.workspace span { color: #8fa0a6; font-size: 11px; }
+.main { padding: 26px 38px 40px 34px; overflow: hidden; }
+.content { width: min(710px, calc(100vw - 570px)); min-width: 680px; }
+.crumb { color: #69767d; font-size: 12px; }
+.topline { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 24px; }
+.range { padding: 8px 12px; border: 1px solid #d7dfe1; border-radius: 8px; color: #445159; background: #fff; font-size: 13px; }
+h1 { margin: 0 0 4px; font-family: Georgia, serif; font-size: 42px; font-weight: 500; letter-spacing: -.035em; }
+.summary-row { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+.summary { flex: 1; margin: 0; color: #647179; font-size: 14px; line-height: 1.55; }
+.status { flex: none; padding: 7px 11px; border: 1px solid #a9ded0; border-radius: 99px; color: #087a5f; background: #ecfbf6; font-size: 12px; font-weight: 750; }
+.metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.card, .panel, .table-wrap { border: 1px solid #d8e0e2; border-radius: 9px; background: #fff; }
+.card { min-height: 106px; padding: 16px; }
+.label { color: #6c787e; font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.value { margin-top: 8px; font-family: Georgia, serif; font-size: 28px; line-height: 1; }
+.delta { margin-top: 9px; color: #078463; font-size: 11px; font-weight: 750; }
+.dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+.panel { min-height: 254px; padding: 16px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; font-size: 13px; font-weight: 750; }
+.legend { display: flex; gap: 12px; color: #718087; font-size: 10px; font-weight: 500; }
+.legend span::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: #198c70; }
+.legend span:last-child::before { background: #ff7043; }
+.chart { display: flex; align-items: end; gap: 10px; height: 178px; padding-top: 20px; }
+.bar { position: relative; flex: 1; min-width: 30px; border-radius: 5px 5px 0 0; background: #cce8df; }
+.bar::after { content: ""; position: absolute; inset: auto 0 0; height: var(--fill); background: #198c70; border-radius: 4px 4px 0 0; }
+.activity { display: grid; align-content: start; gap: 15px; margin-top: 20px; }
+.activity-item { position: relative; padding-left: 18px; }
+.activity-item::before { content: ""; position: absolute; left: 0; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: #ff7043; }
+.activity-item strong { display: block; color: #46535a; font-size: 12px; }
+.activity-item span { display: block; margin-top: 3px; color: #8a959a; font-size: 10px; }
+.table-wrap { overflow: hidden; }
+.table-head { display: flex; justify-content: space-between; padding: 15px 16px; border-bottom: 1px solid #e0e6e7; font-size: 13px; font-weight: 750; }
+#api-key { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 500; letter-spacing: .04em; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+th { padding: 11px 16px; color: #718087; font-size: 9px; letter-spacing: .13em; text-align: left; text-transform: uppercase; }
+td { padding: 11px 16px; border-top: 1px solid #e7ebec; }
+.person { display: flex; align-items: center; gap: 9px; }
+.avatar { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: #52625d; background: #e8eeeb; font-size: 10px; font-weight: 800; }
+.plan { padding: 4px 8px; border-radius: 99px; color: #bf4d27; background: #fff0e9; font-size: 9px; font-weight: 800; }
+.note { margin-top: 14px; color: #7b888e; font-size: 10px; }
+::selection { color: #172229; background: #ffd6c7; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><span class="brand-mark">N</span><span>Northstar</span></div>
+    <div class="nav-label">Workspace</div>
+    <nav class="nav" aria-label="Workspace">
+      <a class="active" href="#">Overview</a>
+      <a href="#">Campaigns</a>
+      <a href="#">Customers</a>
+      <a href="#">Reports</a>
+      <a href="#">Settings</a>
+    </nav>
+    <div class="workspace"><strong>Orion Studio</strong><span>Product team</span></div>
+  </aside>
+  <main class="main">
+    <div class="content">
+      <div class="topline"><span class="crumb">Campaigns / Summer launch</span><span class="range">Jun 01 – Aug 31</span></div>
+      <h1 id="headline">Q3 campaign overview</h1>
+      <div class="summary-row">
+        <p class="summary" id="summary">The summer launch is outperforming its acquisition target. Review the strongest channels, protect customer details, and share a clean update with the team.</p>
+        <span class="status">On track</span>
+      </div>
+      <section class="metrics" aria-label="Campaign metrics">
+        <article class="card"><div class="label">Revenue</div><div class="value" id="revenue-value">$284,920</div><div class="delta">↑ 18.4% vs Q2</div></article>
+        <article class="card"><div class="label">Conversion</div><div class="value" id="conversion-value">8.42%</div><div class="delta">↑ 1.16 pts</div></article>
+        <article class="card"><div class="label">Active trials</div><div class="value" id="trial-value">1,864</div><div class="delta">↑ 9.7% this week</div></article>
+        <article class="card"><div class="label">Churn</div><div class="value">2.08%</div><div class="delta">↓ 0.31 pts</div></article>
+      </section>
+      <section class="dashboard">
+        <article class="panel">
+          <div class="panel-head"><span>Revenue by channel</span><span class="legend"><span>Organic</span><span>Paid</span></span></div>
+          <div class="chart" role="img" aria-label="Revenue by channel bar chart">
+            <div class="bar" style="height:78px;--fill:38%"></div><div class="bar" style="height:108px;--fill:55%"></div>
+            <div class="bar" style="height:92px;--fill:61%"></div><div class="bar" style="height:132px;--fill:48%"></div>
+            <div class="bar" style="height:116px;--fill:42%"></div><div class="bar" style="height:154px;--fill:68%"></div>
+            <div class="bar" style="height:138px;--fill:36%"></div><div class="bar" style="height:166px;--fill:53%"></div>
+          </div>
+        </article>
+        <article class="panel">
+          <div class="panel-head">Live activity</div>
+          <div class="activity">
+            <div class="activity-item" id="activity-1"><strong>Enterprise lead converted</strong><span>4 minutes ago</span></div>
+            <div class="activity-item" id="activity-2"><strong>Campaign budget adjusted</strong><span>19 minutes ago</span></div>
+            <div class="activity-item" id="activity-3"><strong>Weekly report exported</strong><span>42 minutes ago</span></div>
+            <div class="activity-item" id="activity-4"><strong>New segment published</strong><span>1 hour ago</span></div>
+          </div>
+        </article>
+      </section>
+      <section class="table-wrap" id="customer-table">
+        <div class="table-head"><span>Recent conversions</span><span id="api-key">API ns_demo_9F72A4C11D</span></div>
+        <table>
+          <thead><tr><th>Customer</th><th>Email</th><th>Plan</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr id="private-row"><td><span class="person"><span class="avatar">AM</span>Avery Morgan</span></td><td id="customer-email">avery@northstar.example</td><td><span class="plan">SCALE</span></td><td>$12,400</td></tr>
+            <tr><td><span class="person"><span class="avatar">JL</span>Jordan Lee</span></td><td>jordan@northstar.example</td><td><span class="plan">TEAM</span></td><td>$7,850</td></tr>
+            <tr><td><span class="person"><span class="avatar">SR</span>Sam Rivera</span></td><td>sam@northstar.example</td><td><span class="plan">SCALE</span></td><td>$10,200</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <p class="note">Fictional dashboard and data created for Content Edit &amp; Blur store previews.</p>
+    </div>
+  </main>
+</div>
+</body>
+</html>

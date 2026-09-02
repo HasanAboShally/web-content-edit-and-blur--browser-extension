@@ -11,7 +11,8 @@ updates:
       prefix: ci
     labels: ["dependencies"]
 
-  # playwright is the only dependency, and only for tests.
+  # Runtime stays dependency-free. Playwright drives tests and TypeScript performs
+  # no-emit JSDoc checks during development and CI.
   - package-ecosystem: npm
     directory: /
     schedule:

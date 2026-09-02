@@ -7,35 +7,51 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check:
     name: Static checks
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 20
-
-      # No browser needed, so this gives fast feedback on the failures that would
-      # otherwise present as "the extension does not load".
-      - name: Validate manifest and scripts
-        run: node scripts/check.mjs
-
-  test:
-    name: Integration tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
+
+      # No browser needed, so this gives fast feedback on the failures that would
+      # otherwise present as "the extension does not load".
+      - name: Validate manifest and scripts
+        run: npm run check
+
+      - name: Typecheck model and geometry
+        run: npm run typecheck
+
+  test:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -44,14 +60,40 @@ jobs:
       - name: Run test suites
         run: xvfb-run -a npm test
 
+      - name: Test website
+        run: npm run test:website
+
+  firefox:
+    name: Firefox package smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [check]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Firefox
+        run: npx playwright install --with-deps firefox
+
+      - name: Lint and install the Firefox package
+        run: npm run test:firefox
+
   build:
     name: Build packages
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [check]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
 
@@ -62,10 +104,7 @@ jobs:
       - name: Build all targets
         env:
           VERSION: ${{ steps.version.outputs.value }}
-        run: |
-          for target in chrome firefox edge; do
-            node scripts/build.mjs "$target" "$VERSION"
-          done
+        run: npm run build:all -- "$VERSION"
 
       # Catches a stray file or a Firefox manifest transform that stopped
       # applying, on every push rather than only when a tag is cut.
@@ -74,8 +113,10 @@ jobs:
           VERSION: ${{ steps.version.outputs.value }}
         run: node scripts/verify-packages.mjs "$VERSION"
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: extension-packages
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS
           retention-days: 14

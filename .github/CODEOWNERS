@@ -1,0 +1,11 @@
+# Default reviewer for extension behavior, releases, and project policy.
+* @HasanAboShally
+
+# Security- and release-sensitive surfaces.
+/.github/workflows/ @HasanAboShally
+/background.js @HasanAboShally
+/manifest.json @HasanAboShally
+/scripts/build.mjs @HasanAboShally
+/scripts/publish.mjs @HasanAboShally
+/scripts/verify-packages.mjs @HasanAboShally
+/SECURITY.md @HasanAboShally

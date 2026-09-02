@@ -5,11 +5,65 @@ const MODES = [
   { id: "blur", displayName: "Blur", badgeColor: "#FF9800" },
   { id: "hide", displayName: "Hide", badgeColor: "#F44336" },
   { id: "redact", displayName: "Block", badgeColor: "#111827" },
-  { id: "draw", displayName: "Draw", badgeColor: "#9C27B0" },
+  { id: "draw", displayName: "Area", badgeColor: "#9C27B0" },
   { id: "annotate", displayName: "Note", badgeColor: "#E11D48" },
 ];
 
+// Runtime CSS and classic scripts are injected in their manifests' exact order.
+// The scripts share one isolated-world lexical scope; page/main.js must be last
+// because it alone owns bootstrap side effects.
+let pageScriptFilesPromise;
+function pageScriptFiles() {
+  if (!pageScriptFilesPromise) {
+    pageScriptFilesPromise = fetch(chrome.runtime.getURL("page/modules.json"))
+      .then((response) => {
+        if (!response.ok) throw new Error(`module manifest returned ${response.status}`);
+        return response.json();
+      })
+      .then((files) => {
+        if (!Array.isArray(files) || !files.length || files[files.length - 1] !== "page/main.js"
+            || new Set(files).size !== files.length
+            || files.some((file) => typeof file !== "string" || !/^page\/[a-z-]+\.js$/.test(file))) {
+          throw new Error("page/modules.json is invalid");
+        }
+        return Object.freeze(files);
+      })
+      .catch((error) => {
+        pageScriptFilesPromise = null;
+        throw error;
+      });
+  }
+  return pageScriptFilesPromise;
+}
+
+let pageStyleFilesPromise;
+function pageStyleFiles() {
+  if (!pageStyleFilesPromise) {
+    pageStyleFilesPromise = fetch(chrome.runtime.getURL("page/styles.json"))
+      .then((response) => {
+        if (!response.ok) throw new Error(`style manifest returned ${response.status}`);
+        return response.json();
+      })
+      .then((files) => {
+        if (!Array.isArray(files) || !files.length
+            || files[files.length - 1] !== "page/styles/toolbar-system.css"
+            || new Set(files).size !== files.length
+            || files.some((file) => typeof file !== "string"
+              || !/^page\/styles\/[a-z-]+\.css$/.test(file))) {
+          throw new Error("page/styles.json is invalid");
+        }
+        return Object.freeze(files);
+      })
+      .catch((error) => {
+        pageStyleFilesPromise = null;
+        throw error;
+      });
+  }
+  return pageStyleFilesPromise;
+}
+
 const tabStates = {};
+const initializationFlights = new Map();
 
 // Initialize context menus
 chrome.runtime.onInstalled.addListener(() => {
@@ -67,23 +121,46 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-// `initialized` is tracked per tab but injection is per frame, and allFrames only covers
-// frames that existed at injection time. An iframe added later (lazy-loaded embed, SPA
-// mount) has no listener, and swallowing that error made the context menu silently do
-// nothing there. Inject into just that frame and retry once.
+async function injectPageScripts(target) {
+  const [styleFiles, scriptFiles] = await Promise.all([
+    pageStyleFiles(),
+    pageScriptFiles(),
+  ]);
+  await chrome.scripting.insertCSS({ target, files: styleFiles });
+  await chrome.scripting.executeScript({ target, files: scriptFiles });
+}
+
+function serializeInitialization(key, initialize) {
+  const existing = initializationFlights.get(key);
+  if (existing) return existing;
+
+  const flight = Promise.resolve()
+    .then(initialize)
+    .finally(() => {
+      if (initializationFlights.get(key) === flight) initializationFlights.delete(key);
+    });
+  initializationFlights.set(key, flight);
+  return flight;
+}
+
+async function ensureFrameInitialized(tabId, frameId) {
+  return serializeInitialization(`frame:${tabId}:${frameId}`, async () => {
+    if (await probeMode(tabId, frameId) !== null) return;
+    await injectPageScripts({ tabId, frameIds: [frameId] });
+    if (await probeMode(tabId, frameId) === null) {
+      throw new Error(`page listener did not initialize in frame ${frameId}`);
+    }
+  });
+}
+
+// allFrames only covers frames that existed at injection time. An iframe added later
+// (lazy-loaded embed, SPA mount) has no listener, so initialize just that frame and retry.
 async function sendToFrame(tabId, frameId, message) {
   try {
     await chrome.tabs.sendMessage(tabId, message, { frameId });
   } catch {
     try {
-      await chrome.scripting.executeScript({
-        target: { tabId, frameIds: [frameId] },
-        files: ["page-code.js"],
-      });
-      await chrome.scripting.insertCSS({
-        target: { tabId, frameIds: [frameId] },
-        files: ["page-style.css"],
-      });
+      await ensureFrameInitialized(tabId, frameId);
       await chrome.tabs.sendMessage(tabId, message, { frameId });
     } catch {
       // Frame is gone or not scriptable - nothing more to do.
@@ -115,37 +192,36 @@ chrome.commands.onCommand.addListener(async (command) => {
 });
 
 async function ensureInitialized(tabId) {
-  if (tabStates[tabId]?.initialized) {
-    return;
-  }
+  return serializeInitialization(`tab:${tabId}`, async () => {
+    // The service worker can lose tabStates while the isolated-world listener survives.
+    // Probe first: "idle" is a real response, while null means there is no receiver.
+    const existingMode = await probeMode(tabId);
+    if (existingMode !== null) {
+      tabStates[tabId] = { initialized: true, mode: existingMode };
+      return;
+    }
 
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tabId, allFrames: true },
-      files: ["page-code.js"],
-    });
-
-    await chrome.scripting.insertCSS({
-      target: { tabId: tabId, allFrames: true },
-      files: ["page-style.css"],
-    });
-
-    tabStates[tabId] = { initialized: true, mode: await probeMode(tabId) };
-  } catch (error) {
-    console.error("[CEB] Error initializing tab:", error);
-  }
+    try {
+      await injectPageScripts({ tabId, allFrames: true });
+      const mode = await probeMode(tabId);
+      if (mode === null) throw new Error("page listener did not initialize in the top frame");
+      tabStates[tabId] = { initialized: true, mode };
+    } catch (error) {
+      console.error("[CEB] Error initializing tab:", error);
+    }
+  });
 }
 
 // MV3 terminates this worker after ~30s idle, wiping tabStates, but the content script in
 // the tab survives and is still in whatever mode it was in. Assuming "idle" here made the
 // next shortcut press re-enter the current mode instead of leaving it, so the user had to
 // press it twice. Ask the content script instead of guessing.
-async function probeMode(tabId) {
+async function probeMode(tabId, frameId = 0) {
   try {
-    const res = await chrome.tabs.sendMessage(tabId, { action: "getMode" }, { frameId: 0 });
-    return typeof res?.mode === "string" ? res.mode : "idle";
+    const res = await chrome.tabs.sendMessage(tabId, { action: "getMode" }, { frameId });
+    return typeof res?.mode === "string" ? res.mode : null;
   } catch {
-    return "idle"; // freshly injected, or no listener yet
+    return null;
   }
 }
 
@@ -270,6 +346,11 @@ function frameIndexKey(topUrl) {
 // Clean up when tab is closed
 chrome.tabs.onRemoved.addListener((tabId) => {
   delete tabStates[tabId];
+  for (const key of initializationFlights.keys()) {
+    if (key === `tab:${tabId}` || key.startsWith(`frame:${tabId}:`)) {
+      initializationFlights.delete(key);
+    }
+  }
 });
 
 // Reset state when page reloads, and re-inject so saved changes get restored.
@@ -305,21 +386,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
   }
 
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tabId, allFrames: true },
-      files: ["page-code.js"],
-    });
-
-    await chrome.scripting.insertCSS({
-      target: { tabId: tabId, allFrames: true },
-      files: ["page-style.css"],
-    });
-
-    tabStates[tabId] = { initialized: true, mode: "idle" };
-  } catch (error) {
-    console.log("[CEB] Could not auto-inject (restricted page?):", error.message);
-  }
+  await ensureInitialized(tabId);
 });
 
 function hasChanges(changes) {
@@ -353,12 +420,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (tabId) await resetPage(tabId);
       sendResponse({ success: true });
     } else if (message.action === "undo") {
-      chrome.tabs.sendMessage(message.tabId, { action: "undo" });
+      await sendToFrame(message.tabId, 0, { action: "undo" });
       sendResponse({ success: true });
     } else if (message.action === "initAndShowToolbar") {
       // Show toolbar when extension popup opens
       await ensureInitialized(message.tabId);
-      chrome.tabs.sendMessage(message.tabId, { action: "showToolbar" });
+      await sendToFrame(message.tabId, 0, { action: "showToolbar" });
       sendResponse({ success: true });
     } else if (message.action === "setPersistence") {
       sendResponse({ success: true });
@@ -378,10 +445,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Send to content script to trigger download - use sender.tab if no tabId provided
         const tabId = message.tabId || sender.tab?.id;
         if (tabId) {
-          chrome.tabs.sendMessage(tabId, { 
+          await chrome.tabs.sendMessage(tabId, {
             action: "downloadScreenshot", 
             dataUrl: dataUrl 
-          });
+          }, { frameId: sender.frameId ?? 0 });
         }
         sendResponse({ success: true });
       } catch (error) {
@@ -437,14 +504,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
   };
   
-  handleAsync();
+  handleAsync().catch((error) => {
+    console.error("[CEB] Message handling failed:", message?.action || message, error);
+    try { sendResponse({ success: false, error: error.message }); } catch (e) {}
+  });
   return true; // Keep message channel open for async response
 });
 
 // Handle action button click - toggle toolbar
 chrome.action.onClicked.addListener(async (tab) => {
+  if (tab.id === undefined) return;
   await ensureInitialized(tab.id);
-  
-  // Send message to toggle toolbar
-  chrome.tabs.sendMessage(tab.id, { action: 'toggleToolbar' });
+  await sendToFrame(tab.id, 0, { action: 'toggleToolbar' });
 });

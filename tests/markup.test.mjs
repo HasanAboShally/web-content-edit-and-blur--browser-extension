@@ -1,39 +1,17 @@
 // Annotate v2: the highlighter, numbered step badges, and moving/resizing an existing
 // mark. Also covers the pointer-events fix — annotations used to sit above the page and
 // swallow clicks meant for it.
-import { chromium } from 'playwright';
-import os from 'node:os';
-import path from 'node:path';
-import fs from 'node:fs';
+import { setupExtensionTest } from './harness.mjs';
 
-const EXT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const BASE = process.env.CEB_TEST_URL || 'http://localhost:8731';
 const URL1 = `${BASE}/index.html`;
-const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-markup-'));
-
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push({ name, pass, detail });
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`);
-};
-
-const ctx = await chromium.launchPersistentContext(userDataDir, {
-  channel: 'chromium',
-  headless: true,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+const {
+  sw, page, tabId, pageErrors, swErrors, results, check, teardown,
+} = await setupExtensionTest({
+  profilePrefix: 'ceb-markup-',
+  initialUrl: URL1,
 });
 
-let sw = ctx.serviceWorkers()[0];
-if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 15000 });
-const swErrors = [];
-sw.on('console', (m) => { if (m.type() === 'error') swErrors.push(m.text()); });
-
-const page = await ctx.newPage();
-const pageErrors = [];
-page.on('pageerror', (e) => pageErrors.push(String(e)));
-await page.goto(URL1, { waitUntil: 'load' });
-
-const tabId = await sw.evaluate(async (u) => (await chrome.tabs.query({ url: u }))[0]?.id ?? null, URL1);
 const activate = (mode) => sw.evaluate(async ({ id, mode }) => {
   try { await ensureInitialized(id); await switchMode(id, mode); return 'ok'; }
   catch (e) { return 'ERR ' + e.message; }
@@ -84,9 +62,9 @@ await page.waitForTimeout(800);
 // A returning user never sees it, so dismiss it rather than dodging the coordinates.
 await page.evaluate(() => document.getElementById('ceb-panel')?.remove());
 
-// Pro reveals the box, freehand and step tools.
+// Advanced reveals the specialized numbered Step tool.
 await page.evaluate(async () => {
-  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="pro"]')?.click();
+  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="advanced"]')?.click();
   await new Promise(r => setTimeout(r, 300));
 });
 
@@ -158,8 +136,8 @@ check('each click places a step badge', labels.length === 3, JSON.stringify(labe
 check('step badges number themselves in order',
   JSON.stringify(labels) === JSON.stringify(['1', '2', '3']), JSON.stringify(labels));
 
-// Numbers are derived from position, not stored, so removing one closes the gap rather
-// than leaving a 1, 3 sequence behind.
+// A click selects rather than destroying a mark. Deletion is explicit, and numbers are
+// derived from position so removing one closes the gap instead of leaving 1, 3 behind.
 const firstStepBox = await page.evaluate(() => {
   const el = [...document.querySelectorAll('.ceb-annotation')].find(e => e.dataset.cebNoteKind === 'step');
   const r = el.getBoundingClientRect();
@@ -167,8 +145,19 @@ const firstStepBox = await page.evaluate(() => {
 });
 await page.mouse.click(firstStepBox[0], firstStepBox[1]);
 await page.waitForTimeout(400);
+const selectedStep = await page.evaluate(() => ({
+  count: [...document.querySelectorAll('.ceb-annotation')]
+    .filter(e => e.dataset.cebNoteKind === 'step').length,
+  status: document.querySelector('#ceb-note-selection-status')?.textContent,
+  controlsVisible: !document.querySelector('#ceb-note-selection')?.hidden,
+}));
+check('clicking a mark selects it without deleting it',
+  selectedStep.count === 3 && selectedStep.controlsVisible && selectedStep.status === 'Step badge selected',
+  JSON.stringify(selectedStep));
+await page.click('#ceb-btn-note-delete');
+await page.waitForTimeout(400);
 labels = await stepLabels();
-check('removing a badge renumbers the rest',
+check('the explicit delete action removes a badge and renumbers the rest',
   JSON.stringify(labels) === JSON.stringify(['1', '2']), JSON.stringify(labels));
 
 // ---------- Moving a mark ----------
@@ -195,6 +184,62 @@ const afterUndo = (await notes()).find(n => n.kind === 'arrow');
 check('undo puts a moved mark back',
   Math.abs(afterUndo.left - beforeMove.left) < 12 && Math.abs(afterUndo.top - beforeMove.top) < 12,
   `${afterUndo.left},${afterUndo.top} vs ${beforeMove.left},${beforeMove.top}`);
+
+// Selection turns the existing controls into contextual properties. This is the
+// post-placement editing path: no delete-and-redraw cycle just to change appearance.
+await page.evaluate(() => {
+  const input = document.querySelector('#ceb-note-width-input');
+  input.value = '10';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+});
+await page.waitForTimeout(400);
+const editedWidth = await page.evaluate((id) => {
+  const el = [...document.querySelectorAll('.ceb-annotation')].find(e => e.dataset.cebNoteId === id);
+  return Number(el?.querySelector('line')?.getAttribute('stroke-width'));
+}, beforeMove.id);
+check('width control edits the selected arrow', editedWidth === 10, String(editedWidth));
+
+await page.click('.ceb-note-swatch[data-note-color="#2563eb"]');
+await page.waitForTimeout(400);
+const editedColor = await page.evaluate((id) => {
+  const el = [...document.querySelectorAll('.ceb-annotation')].find(e => e.dataset.cebNoteId === id);
+  return el?.querySelector('line')?.getAttribute('stroke');
+}, beforeMove.id);
+check('color swatches edit the selected arrow', editedColor === '#2563eb', String(editedColor));
+
+const beforeNudge = (await notes()).find(n => n.id === beforeMove.id);
+await page.keyboard.press('Shift+ArrowRight');
+await page.waitForTimeout(350);
+const afterNudge = (await notes()).find(n => n.id === beforeMove.id);
+check('keyboard moves a selected annotation in 10 px steps with Shift',
+  Math.abs(afterNudge.left - beforeNudge.left - 10) < 3,
+  `${beforeNudge.left} -> ${afterNudge.left}`);
+await page.evaluate(() => document.querySelector('#ceb-btn-undo')?.click());
+await page.waitForTimeout(350);
+
+const beforeKeyboardDelete = (await notes()).length;
+await drawNote('arrow', [780, 130], [860, 170]);
+await page.keyboard.press('Delete');
+await page.waitForTimeout(350);
+const afterKeyboardDelete = (await notes()).length;
+check('Delete removes the selected annotation without using a pointer target',
+  afterKeyboardDelete === beforeKeyboardDelete,
+  `${beforeKeyboardDelete} -> ${afterKeyboardDelete}`);
+
+await page.mouse.click(shaftMid[0], shaftMid[1]);
+await page.waitForTimeout(250);
+await page.keyboard.press('Escape');
+await page.waitForTimeout(250);
+const afterDeselect = await page.evaluate(() => ({
+  selectionHidden: document.querySelector('#ceb-note-selection')?.hidden,
+  stillAnnotating: document.body.classList.contains('ceb-mode-annotate'),
+}));
+check('Escape deselects before exiting Annotate mode',
+  afterDeselect.selectionHidden === true && afterDeselect.stillAnnotating === true,
+  JSON.stringify(afterDeselect));
+await page.mouse.click(shaftMid[0], shaftMid[1]);
+await page.waitForTimeout(250);
 
 // ---------- Handles and resizing ----------
 await page.mouse.move(shaftMid[0], shaftMid[1]);
@@ -292,7 +337,7 @@ const handleTarget = await page.evaluate(() => {
 await page.mouse.move(handleTarget.mid[0], handleTarget.mid[1]);
 await page.waitForTimeout(250);
 const handlePos = await page.evaluate(() => {
-  const h = document.querySelector('#ceb-note-handles')?.children?.[0];
+  const h = document.querySelector('#ceb-note-handles .ceb-note-handle');
   if (!h) return null;
   const r = h.getBoundingClientRect();
   return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)];
@@ -391,8 +436,7 @@ check('and the mark is not deleted by that click', markSurvived, String(markSurv
 check('no uncaught page errors', pageErrors.length === 0, pageErrors.join(' | '));
 check('no service worker errors', swErrors.length === 0, swErrors.join(' | '));
 
-await ctx.close();
-fs.rmSync(userDataDir, { recursive: true, force: true });
+await teardown();
 
 const failed = results.filter(r => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);

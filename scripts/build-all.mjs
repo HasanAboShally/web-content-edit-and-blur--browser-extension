@@ -10,7 +10,8 @@
  *   npm run build:all -- 2.4.0
  */
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -28,4 +29,14 @@ for (const target of ['chrome', 'firefox', 'edge']) {
 const verify = spawnSync('node', [path.join('scripts', 'verify-packages.mjs'), version], {
   stdio: 'inherit',
 });
-process.exit(verify.status ?? 1);
+if (verify.status !== 0) process.exit(verify.status ?? 1);
+
+const checksumLines = ['chrome', 'firefox', 'edge'].map(target => {
+  const name = `content-edit-blur-${target}-${version}.zip`;
+  const digest = createHash('sha256')
+    .update(readFileSync(path.join(root, 'dist', name)))
+    .digest('hex');
+  return `${digest}  ${name}`;
+});
+writeFileSync(path.join(root, 'dist', 'SHA256SUMS'), `${checksumLines.join('\n')}\n`);
+console.log('Created dist/SHA256SUMS');

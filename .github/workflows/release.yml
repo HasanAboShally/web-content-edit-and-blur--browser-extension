@@ -37,12 +37,14 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
+          cache: npm
 
       # A tag is not allowed to introduce a version. It has to agree with what
       # is committed, otherwise the build would stamp a version that nothing in
@@ -61,22 +63,29 @@ jobs:
             node scripts/preflight.mjs "$INPUT_VERSION"
           fi
 
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
       - name: Static checks
         run: npm run check
+
+      - name: Typecheck model and geometry
+        run: npm run typecheck
 
   test:
     name: Integration tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
           cache: npm
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
@@ -85,19 +94,45 @@ jobs:
       - name: Run test suites
         run: xvfb-run -a npm test
 
+      - name: Test website
+        run: npm run test:website
+
+  firefox:
+    name: Firefox package smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [verify]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Firefox
+        run: npx playwright install --with-deps firefox
+
+      - name: Lint and install the Firefox package
+        run: npm run test:firefox
+
   build:
     name: Build packages
     runs-on: ubuntu-latest
-    needs: [verify, test]
+    timeout-minutes: 5
+    needs: [verify, test, firefox]
     permissions:
       contents: write
     outputs:
       version: ${{ steps.version.outputs.value }}
       stores: ${{ steps.stores.outputs.value }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
 
@@ -124,10 +159,7 @@ jobs:
       - name: Build all targets
         env:
           VERSION: ${{ steps.version.outputs.value }}
-        run: |
-          for target in chrome firefox edge; do
-            node scripts/build.mjs "$target" "$VERSION"
-          done
+        run: npm run build:all -- "$VERSION"
 
       - name: Verify package contents
         env:
@@ -136,11 +168,13 @@ jobs:
 
       - name: Create GitHub release
         if: github.event_name == 'push'
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           name: v${{ steps.version.outputs.value }}
           tag_name: v${{ steps.version.outputs.value }}
-          files: dist/*.zip
+          files: |
+            dist/*.zip
+            dist/SHA256SUMS
           body: |
             ## Content Edit & Blur v${{ steps.version.outputs.value }}
 
@@ -155,10 +189,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: extension-packages
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS
           retention-days: 14
 
   # One job per store, so a failure names the store in the UI and can be re-run
@@ -166,19 +202,20 @@ jobs:
   publish:
     name: Publish to ${{ matrix.store }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: build
     strategy:
       fail-fast: false
       matrix:
         store: ${{ fromJSON(needs.build.outputs.stores) }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 20
 
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: extension-packages
           path: dist
@@ -188,12 +225,15 @@ jobs:
       # success for a release that never shipped is worse than no automation.
       - name: Publish
         run: |
-          node scripts/publish.mjs "$STORE" \
-            --version "$VERSION" \
-            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry_run) && '--dry-run' || '' }}
+          args=("$STORE" --version "$VERSION")
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          node scripts/publish.mjs "${args[@]}"
         env:
           STORE: ${{ matrix.store }}
           VERSION: ${{ needs.build.outputs.version }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
           CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
           CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
           CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
@@ -201,7 +241,6 @@ jobs:
           CHROME_PUBLISHER_ID: ${{ secrets.CHROME_PUBLISHER_ID }}
           FIREFOX_API_KEY: ${{ secrets.FIREFOX_API_KEY }}
           FIREFOX_API_SECRET: ${{ secrets.FIREFOX_API_SECRET }}
-          FIREFOX_ADDON_ID: ${{ secrets.FIREFOX_ADDON_ID }}
           EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
           EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
           EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}

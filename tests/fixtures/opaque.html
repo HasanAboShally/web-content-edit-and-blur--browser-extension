@@ -1,13 +1,13 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head><meta charset="utf-8"><title>Opaque origin frames</title></head>
 <body>
   <h1 id="host-title">Host page</h1>
   <!-- about:blank and srcdoc frames both report origin "null". They are extremely
        common in the wild (ads, widgets, editors), so rules created inside them must
        not be persisted to a global bucket shared by every website. -->
-  <iframe id="blank-frame" src="about:blank" width="300" height="120"></iframe>
-  <iframe id="srcdoc-frame" srcdoc="<p id='srcdoc-text'>srcdoc content</p>" width="300" height="120"></iframe>
+  <iframe id="blank-frame" src="about:blank" width="300" height="120" title="Blank origin test frame"></iframe>
+  <iframe id="srcdoc-frame" srcdoc="<p id='srcdoc-text'>srcdoc content</p>" width="300" height="120" title="Source document test frame"></iframe>
   <script>
     const f = document.getElementById('blank-frame');
     f.contentDocument.body.innerHTML = '<p id="blank-text">blank frame content</p>';

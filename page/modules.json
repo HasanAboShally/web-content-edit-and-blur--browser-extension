@@ -1,0 +1,16 @@
+[
+  "page/model.js",
+  "page/geometry.js",
+  "page/extension-api.js",
+  "page/effects-privacy.js",
+  "page/areas.js",
+  "page/annotation-rendering.js",
+  "page/annotation-interactions.js",
+  "page/content-tools.js",
+  "page/persistence-history.js",
+  "page/picker.js",
+  "page/toolbar-template.js",
+  "page/toolbar-controller.js",
+  "page/toolbar-state.js",
+  "page/main.js"
+]

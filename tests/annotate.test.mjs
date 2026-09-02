@@ -1,39 +1,21 @@
 // Annotation tests: the five mark kinds, the session-only persistence default and
 // its "keep" opt-in, colour validation on import, scope containment, and the
 // screenshot chrome-hiding fix.
-import { chromium } from 'playwright';
-import os from 'node:os';
-import path from 'node:path';
-import fs from 'node:fs';
+import { setupExtensionTest } from './harness.mjs';
 
-const EXT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const BASE = process.env.CEB_TEST_URL || 'http://localhost:8731';
 const URL1 = `${BASE}/index.html`;
-const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-note-'));
-
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push({ name, pass, detail });
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`);
-};
-
-const ctx = await chromium.launchPersistentContext(userDataDir, {
-  channel: 'chromium',
-  headless: true,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+const {
+  sw, page, tabId, pageErrors, swErrors, results, check, teardown,
+} = await setupExtensionTest({
+  profilePrefix: 'ceb-note-',
+  initialUrl: URL1,
 });
 
-let sw = ctx.serviceWorkers()[0];
-if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 15000 });
-const swErrors = [];
-sw.on('console', (m) => { if (m.type() === 'error') swErrors.push(m.text()); });
+// The extension UI is intentionally always light, even when the OS/browser preference
+// is dark. Set the preference before the toolbar is created to catch regressions.
+await page.emulateMedia({ colorScheme: 'dark' });
 
-let page = await ctx.newPage();
-const pageErrors = [];
-page.on('pageerror', (e) => pageErrors.push(String(e)));
-await page.goto(URL1, { waitUntil: 'load' });
-
-const tabId = await sw.evaluate(async (u) => (await chrome.tabs.query({ url: u }))[0]?.id ?? null, URL1);
 const activate = (mode) => sw.evaluate(async ({ id, mode }) => {
   try { await ensureInitialized(id); await switchMode(id, mode); return 'ok'; }
   catch (e) { return 'ERR ' + e.message; }
@@ -74,18 +56,85 @@ await page.waitForTimeout(800);
 const overlayUp = await page.evaluate(() => !!document.getElementById('ceb-annotate-overlay'));
 check('annotate mode installs its overlay', overlayUp);
 
+const uiLayers = await page.evaluate(() => {
+  const toolbar = document.getElementById('ceb-toolbar');
+  const overlay = document.getElementById('ceb-annotate-overlay');
+  const cs = toolbar ? getComputedStyle(toolbar) : null;
+  return {
+    theme: toolbar?.dataset.theme,
+    background: cs?.backgroundColor,
+    colorScheme: cs?.colorScheme,
+    toolbarZ: Number(cs?.zIndex || 0),
+    overlayZ: Number(overlay ? getComputedStyle(overlay).zIndex : 0),
+    floatingBadge: !!document.getElementById('ceb-mode-badge'),
+  };
+});
+check('toolbar stays light under a dark system preference',
+  uiLayers.theme === 'light' && uiLayers.background === 'rgb(255, 255, 255)'
+    && uiLayers.colorScheme.includes('light'), JSON.stringify(uiLayers));
+check('toolbar is above the annotate input layer',
+  uiLayers.toolbarZ > uiLayers.overlayZ, JSON.stringify(uiLayers));
+check('the redundant floating mode badge does not cover the toolbar',
+  uiLayers.floatingBadge === false, JSON.stringify(uiLayers));
+
 const toolsVisible = await page.evaluate(() => {
   const el = document.querySelector('#ceb-annotate-tools');
   return el ? !el.hidden : 'missing';
 });
 check('annotation tool row is revealed in annotate mode', toolsVisible === true, String(toolsVisible));
 
-// ---------- The four drag-drawn kinds ----------
-// rect and pen are Pro-only, so switch to Pro before driving their buttons.
-await page.evaluate(async () => {
-  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="pro"]')?.click();
-  await new Promise(r => setTimeout(r, 300));
+// A DOM .click() bypasses hit testing. Use a real pointer click to prove the full-screen
+// annotation layer no longer intercepts the toolbar.
+let realToolClickError = '';
+try {
+  await page.click('.ceb-note-tool[data-note-tool="ellipse"]', { timeout: 3000 });
+} catch (e) {
+  realToolClickError = String(e);
+}
+const realToolActive = await page.evaluate(() =>
+  document.querySelector('.ceb-note-tool[data-note-tool="ellipse"]')?.classList.contains('active'));
+check('annotation tools remain pointer-accessible while annotating',
+  !realToolClickError && realToolActive === true, realToolClickError || String(realToolActive));
+
+// The first-run/shortcut dialog used to be caught by the active-mode document handler,
+// so its close button could not run. Dismiss onboarding, then exercise the same path.
+if (await page.locator('#ceb-panel').count()) {
+  await page.click('#ceb-panel .ceb-panel-close');
+}
+await page.click('#ceb-btn-help');
+const dialogTheme = await page.evaluate(() => {
+  const panel = document.getElementById('ceb-panel');
+  return panel ? {
+    role: panel.getAttribute('role'),
+    background: getComputedStyle(panel).backgroundColor,
+  } : null;
 });
+check('shortcut dialog is a light accessible dialog',
+  dialogTheme?.role === 'dialog' && dialogTheme.background === 'rgb(255, 255, 255)',
+  JSON.stringify(dialogTheme));
+await page.click('#ceb-panel .ceb-panel-close');
+check('dialog controls work while annotate mode is active',
+  (await page.locator('#ceb-panel').count()) === 0);
+
+await page.click('.ceb-note-tool[data-note-tool="arrow"]');
+await page.evaluate(() => {
+  const input = document.querySelector('#ceb-note-width-input');
+  input.value = '8';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+});
+await page.waitForTimeout(200);
+const widthControl = await page.evaluate(() => ({
+  value: document.querySelector('#ceb-note-width-input')?.value,
+  output: document.querySelector('#ceb-note-width-value')?.textContent,
+  visible: !document.querySelector('#ceb-note-width')?.hidden,
+}));
+check('stroke width control updates for line tools',
+  widthControl.visible && widthControl.value === '8' && widthControl.output === '8 px',
+  JSON.stringify(widthControl));
+check('stroke width preference is remembered', (await readKey('annotateSize')) === 8);
+
+// ---------- The four drag-drawn kinds ----------
+// Box and Pen are everyday annotation tools, so Essentials must expose both.
 
 for (const [tool, from, to] of [
   ['arrow', [200, 300], [320, 380]],
@@ -108,7 +157,13 @@ const svgOk = await page.evaluate(() => {
   const out = {};
   for (const el of document.querySelectorAll('.ceb-annotation')) {
     const kind = el.dataset.cebNoteKind;
-    if (kind === 'arrow') out.arrow = !!el.querySelector('line') && !!el.querySelector('polygon');
+    if (kind === 'arrow') {
+      out.arrow = !!el.querySelector('line') && !!el.querySelector('polygon');
+      out.arrowWidth = Number(el.querySelector('line')?.getAttribute('stroke-width'));
+      out.annotationZ = Number(getComputedStyle(el).zIndex);
+      out.overlayZ = Number(getComputedStyle(document.getElementById('ceb-annotate-overlay')).zIndex);
+      out.toolbarZ = Number(getComputedStyle(document.getElementById('ceb-toolbar')).zIndex);
+    }
     if (kind === 'ellipse') {
       const e = el.querySelector('ellipse');
       out.ellipse = !!e && parseFloat(e.getAttribute('rx')) > 10;
@@ -125,6 +180,10 @@ const svgOk = await page.evaluate(() => {
   return out;
 });
 check('arrow draws a shaft and a head', svgOk.arrow === true, JSON.stringify(svgOk));
+check('new arrows use the selected stroke width', svgOk.arrowWidth === 8, JSON.stringify(svgOk));
+check('annotation input stays above marks but below the toolbar',
+  svgOk.annotationZ < svgOk.overlayZ && svgOk.overlayZ < svgOk.toolbarZ,
+  JSON.stringify(svgOk));
 check('ellipse has a real radius', svgOk.ellipse === true);
 check('rect has a real width', svgOk.rect === true);
 check('pen path is smoothed with quadratic curves', svgOk.pen === true);
@@ -179,7 +238,7 @@ check('session-only annotations are gone after reload', (await countNotes()) ===
 check('re-activate annotate mode', (await activate('annotate')) === 'ok');
 await page.waitForTimeout(800);
 await page.evaluate(async () => {
-  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="pro"]')?.click();
+  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="advanced"]')?.click();
   await new Promise(r => setTimeout(r, 200));
   document.querySelector('#ceb-btn-note-keep')?.click();
   await new Promise(r => setTimeout(r, 200));
@@ -247,20 +306,25 @@ check('annotate overlay is hidden while capturing', capture.sawOverlayHidden ===
 check('toolbar comes back after capturing',
   capture.visibleAfter !== 'hidden', capture.visibleAfter);
 
-// ---------- Simple mode keeps the Pro-only tools out of the way ----------
-const simpleTools = await page.evaluate(async () => {
-  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="simple"]')?.click();
+// ---------- Essentials keeps common tools and hides only the specialized Step ----------
+const essentialTools = await page.evaluate(async () => {
+  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="essentials"]')?.click();
   await new Promise(r => setTimeout(r, 300));
   const vis = t => {
     const b = document.querySelector(`.ceb-note-tool[data-note-tool="${t}"]`);
     return b ? getComputedStyle(b).display !== 'none' : 'missing';
   };
-  return { arrow: vis('arrow'), ellipse: vis('ellipse'), text: vis('text'), rect: vis('rect'), pen: vis('pen') };
+  return {
+    arrow: vis('arrow'), ellipse: vis('ellipse'), marker: vis('marker'), text: vis('text'),
+    rect: vis('rect'), pen: vis('pen'), step: vis('step')
+  };
 });
-check('Simple mode keeps arrow, circle and text',
-  simpleTools.arrow && simpleTools.ellipse && simpleTools.text, JSON.stringify(simpleTools));
-check('Simple mode hides the Pro-only box and pen tools',
-  simpleTools.rect === false && simpleTools.pen === false, JSON.stringify(simpleTools));
+check('Essentials keeps all common annotation tools, including Box and Pen',
+  essentialTools.arrow && essentialTools.ellipse && essentialTools.marker
+    && essentialTools.text && essentialTools.rect && essentialTools.pen,
+  JSON.stringify(essentialTools));
+check('Essentials hides only the specialized numbered Step tool',
+  essentialTools.step === false, JSON.stringify(essentialTools));
 
 // ---------- Regression: a long pen stroke must not eat its own beginning ----------
 // The buffer used to shift() the oldest samples away once a stroke passed the cap, so
@@ -268,7 +332,7 @@ check('Simple mode hides the Pro-only box and pen tools',
 await activate('annotate');
 await page.waitForTimeout(700);
 await page.evaluate(async () => {
-  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="pro"]')?.click();
+  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="essentials"]')?.click();
   await new Promise(r => setTimeout(r, 250));
   document.querySelector('.ceb-note-tool[data-note-tool="pen"]')?.click();
 });
@@ -327,24 +391,39 @@ check('clicking through an annotation never targets extension chrome',
 check('clicking through an annotation reaches the page element beneath',
   added.length === 1 && added[0] === '#card-1', JSON.stringify(added));
 
-// ---------- Regression: screenshot restores its chrome even on a dead context ----------
-// sendMessage throws synchronously once the extension context is invalidated, which
-// used to skip the restore and leave the whole UI invisible until a reload.
+// ---------- Regression: stale page UI survives an extension reload safely ----------
+// Every Chrome API throws synchronously once the extension context is invalidated.
+// Runtime messaging used to leave screenshot chrome hidden, while direct storage calls
+// surfaced as uncaught errors on chrome://extensions.
 await activate('annotate');
 await page.waitForTimeout(700);
+const errorsBeforeReload = pageErrors.length;
+await sw.evaluate(() => chrome.runtime.reload());
+await page.waitForTimeout(1200);
 const deadContext = await page.evaluate(async () => {
   document.querySelector('#ceb-btn-screenshot')?.click();
   await new Promise(r => setTimeout(r, 1200));
+  const persist = document.getElementById('ceb-persist-toggle');
+  persist.checked = !persist.checked;
+  persist.dispatchEvent(new Event('change', { bubbles: true }));
+  await new Promise(r => setTimeout(r, 100));
   const tb = document.getElementById('ceb-toolbar');
-  return tb ? getComputedStyle(tb).visibility : 'missing';
+  return {
+    visibility: tb ? getComputedStyle(tb).visibility : 'missing',
+    notice: document.getElementById('ceb-toast')?.textContent || ''
+  };
 });
-check('toolbar is visible again after a capture', deadContext === 'visible', deadContext);
+check('toolbar is visible again after a capture', deadContext.visibility === 'visible', deadContext.visibility);
+const invalidationErrors = pageErrors.slice(errorsBeforeReload)
+  .filter(error => /extension context invalidated/i.test(error));
+check('stale storage controls fail safely after an extension reload',
+  invalidationErrors.length === 0 && /refresh this page/i.test(deadContext.notice),
+  JSON.stringify({ errors: invalidationErrors, notice: deadContext.notice }));
 
 check('no uncaught page errors', pageErrors.length === 0, pageErrors.join(' | '));
 check('no service worker errors', swErrors.length === 0, swErrors.join(' | '));
 
 const passed = results.filter(r => r.pass).length;
 console.log(`\n${passed}/${results.length} passed`);
-await ctx.close();
-fs.rmSync(userDataDir, { recursive: true, force: true });
+await teardown();
 process.exit(passed === results.length ? 0 : 1);

@@ -1,24 +1,13 @@
 // Regressions for two data-loss bugs found in review.
-import { chromium } from 'playwright';
-import os from 'node:os';
-import path from 'node:path';
-import fs from 'node:fs';
+import { getFirstTabId, setupExtensionTest } from './harness.mjs';
 
-const EXT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const BASE = process.env.CEB_TEST_URL || 'http://localhost:8731';
-const userDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-reg-'));
-
-const results = [];
-const check = (name, pass, detail = '') => {
-  results.push({ name, pass, detail });
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`);
-};
-
-const ctx = await chromium.launchPersistentContext(userDataDir, {
-  channel: 'chromium', headless: true,
-  args: [`--disable-extensions-except=${EXT}`, `--load-extension=${EXT}`],
+const {
+  ctx, sw, page: tabB, tabId: idB, swErrors, results, check, teardown,
+} = await setupExtensionTest({
+  profilePrefix: 'ceb-reg-',
+  initialUrl: `${BASE}/page2.html`,
 });
-let sw = ctx.serviceWorkers()[0] || await ctx.waitForEvent('serviceworker', { timeout: 15000 });
 
 const siteKey = `site_${BASE}`;
 const readKey = (k) => sw.evaluate(async (key) => (await chrome.storage.local.get([key]))[key] ?? null, k);
@@ -26,14 +15,11 @@ const activate = (id, mode) => sw.evaluate(async ({ id, mode }) => {
   try { await ensureInitialized(id); await switchMode(id, mode); return 'ok'; }
   catch (e) { return 'ERR ' + e.message; }
 }, { id, mode });
-const tabFor = (u) => sw.evaluate(async (url) => (await chrome.tabs.query({ url }))[0]?.id ?? null, u);
+const tabFor = (u) => getFirstTabId(sw, u);
 
 // ---- Bug 1: a frame that never loaded site rules must not delete them ----
 // Tab B is opened BEFORE any site rule exists, so its state has none. A later commit
 // in tab B used to send an empty site payload, which the background read as "delete".
-const tabB = await ctx.newPage();
-await tabB.goto(`${BASE}/page2.html`, { waitUntil: 'load' });
-const idB = await tabFor(`${BASE}/page2.html`);
 await activate(idB, 'blur');
 await tabB.waitForTimeout(1200);
 
@@ -43,7 +29,7 @@ const idA = await tabFor(`${BASE}/index.html`);
 await activate(idA, 'hide');
 await tabA.waitForTimeout(1200);
 await tabA.evaluate(() => {
-  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="pro"]')?.click();
+  document.querySelector('#ceb-ui-seg .ceb-seg-btn[data-ui="advanced"]')?.click();
   document.querySelector('#ceb-scope-seg .ceb-seg-btn[data-scope="site"]')?.click();
 });
 await tabA.waitForTimeout(300);
@@ -141,7 +127,7 @@ await activate(idD, 'blur');
 await tabD.waitForTimeout(1200);
 
 // context-target.js has no match_about_blank, so the context-menu path cannot reach these
-// frames — but page-code.js IS injected into them, so the toolbar click path can.
+// frames — but the page modules ARE injected into them, so the toolbar click path can.
 const blankFrame = tabD.frames().find(f => f.url() === 'about:blank');
 if (blankFrame) {
   await blankFrame.click('#blank-text', { timeout: 5000 }).catch(() => {});
@@ -193,7 +179,7 @@ check('route B does not inherit route A\'s rule', selB === '#pic', `B=[${selB}]`
 
 // ---- Rules created inside an iframe must survive a reload ----
 // They are stored under the frame's own URL key, which the top-level reload check never
-// looks at, so page-code.js was never re-injected and the rule silently vanished.
+// looks at, so the page modules were never re-injected and the rule silently vanished.
 const tabF = await ctx.newPage();
 await tabF.goto(`${BASE}/index.html`, { waitUntil: 'load' });
 const idF = await sw.evaluate(async (url) => (await chrome.tabs.query({ url }))[0]?.id ?? null,
@@ -219,10 +205,9 @@ const framedAfter = await innerAfter.evaluate(
   () => getComputedStyle(document.querySelector('#frame-text')).filter).catch(e => 'ERR');
 check('iframe rule restores after reload', String(framedAfter).includes('blur'), String(framedAfter));
 
-check('no service worker errors', true);
+check('no service worker errors', swErrors.length === 0, swErrors.join(' | '));
 
 const passed = results.filter(r => r.pass).length;
 console.log(`\n${passed}/${results.length} passed`);
-await ctx.close();
-fs.rmSync(userDataDir, { recursive: true, force: true });
+await teardown();
 process.exit(passed === results.length ? 0 : 1);

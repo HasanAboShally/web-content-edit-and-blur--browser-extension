@@ -123,7 +123,7 @@ From GitHub: **Actions → Release → Run workflow**, leave *dry run* ticked.
 Missing credentials are reported all at once, per store, rather than one failure
 at a time:
 
-```
+```text
   [chrome] missing 5 credentials for chrome: CHROME_CLIENT_ID, …
 ```
 
@@ -134,8 +134,8 @@ code, but it does not write descriptions, screenshots, search terms or privacy
 answers. Use this order so the package and its listing enter review together:
 
 1. Update `manifest.json`, `package.json` and `CHANGELOG.md`, then run
-   `node scripts/preflight.mjs vX.Y.Z`, `npm test`, `npm run check` and
-   `npm run build:all`.
+   `npm run release:check`. It regenerates release media, runs every local gate,
+   validates Firefox, builds all packages and checksums, and runs version preflight.
 2. Update each store's listing draft. Keep the reusable copy, source icon and
    screenshots in `store-assets/` so the three stores do not drift.
 3. Run the GitHub **Release** workflow manually with `dry_run=true` and
@@ -192,18 +192,19 @@ submission is still failing; check the Chrome item status directly.
 
 ## What a release does
 
-```
-verify ──┐
-         ├──→ build ──→ publish (chrome │ firefox │ edge)
-test ────┘
+```text
+verify ───┐
+test ─────┼──→ build ──→ publish (chrome │ firefox │ edge)
+firefox ──┘
 ```
 
 1. **verify** — `scripts/preflight.mjs` requires the tag, `manifest.json`,
    `package.json`, and a `CHANGELOG.md` heading to agree; then static checks.
-2. **test** — the Playwright suites, in a real browser.
-3. **build** — three ZIPs, `scripts/verify-packages.mjs` confirms their contents,
+2. **test** — the Playwright suites, in a real Chromium browser.
+3. **firefox** — strict Mozilla lint and temporary installation in a real Firefox runtime.
+4. **build** — three ZIPs, `scripts/verify-packages.mjs` confirms their contents,
    then a GitHub Release with the ZIPs attached.
-4. **publish** — one job per store, so a single store can be re-run on its own
+5. **publish** — one job per store, so a single store can be re-run on its own
    without republishing to the others.
 
 Publishing cannot start unless the tests pass, and a store rejecting an upload

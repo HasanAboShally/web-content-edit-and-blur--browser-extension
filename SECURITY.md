@@ -11,10 +11,25 @@ Please include what an attacker could achieve, the steps to reproduce it, and th
 and extension version. You'll get an initial response within a week. Fixes ship as a patch
 release, and you'll be credited in the advisory unless you'd rather not be.
 
+We aim to assess a confirmed report within 14 days and release an agreed fix as soon as it
+is safe to do so. Timing depends on severity and browser-store review. Coordinated public
+disclosure should wait until fixed versions are available to users.
+
 ## Supported versions
 
 Only the latest release receives fixes. Browser stores auto-update, so users are generally
 on the current version already.
+
+## Local data and deletion
+
+Rules, replacements and opted-in annotations are stored in the current browser profile's
+extension-local storage. They remain until the user removes them, clears the extension's
+site data, deletes the browser profile, or uninstalls the extension. Browser uninstall
+normally removes that extension-local data. Content Edit & Blur has no server-side copy
+and therefore cannot retain or recover it.
+
+Users can remove page changes from the toolbar. To erase everything, use the browser's
+extension settings to clear this extension's stored data or uninstall the extension.
 
 ## Threat model
 

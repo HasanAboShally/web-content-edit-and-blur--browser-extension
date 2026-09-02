@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Content Edit &amp; Blur — Edit, blur, redact and annotate any webpage</title>
 <meta name="description" content="A browser extension to edit, blur, redact and annotate any webpage. For mockups, screenshots and screen shares. Works entirely offline — no data collection.">
-<link rel="icon" type="image/png" href="images/app-icon-128.png?v=2.3.0">
+<link rel="icon" type="image/png" href="images/app-icon-128.png?v=2.4.0">
 <link rel="canonical" href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
 <meta name="theme-color" content="#f7f5f0" id="theme-color">
 
@@ -17,15 +17,17 @@
 <meta property="og:title" content="Content Edit & Blur — Take the screenshot. Leave the secrets.">
 <meta property="og:description" content="Edit, blur, redact and annotate any webpage. Works entirely offline.">
 <meta property="og:url" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/">
-<meta property="og:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png?v=2.3.0">
-<meta property="og:image:width" content="128">
-<meta property="og:image:height" content="128">
-<meta property="og:image:alt" content="Content Edit & Blur app icon">
-<meta name="twitter:card" content="summary">
+<meta property="og:site_name" content="Content Edit & Blur">
+<meta property="og:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/og-image.png?v=2.4.0">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Content Edit & Blur — Take the screenshot. Leave the secrets.">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Content Edit & Blur">
 <meta name="twitter:description" content="Edit, blur, redact and annotate any webpage. Works entirely offline.">
-<meta name="twitter:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/images/app-icon-128.png?v=2.3.0">
-<meta name="twitter:image:alt" content="Content Edit & Blur app icon">
+<meta name="twitter:image" content="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/og-image.png?v=2.4.0">
+<meta name="twitter:image:alt" content="Content Edit & Blur — Take the screenshot. Leave the secrets.">
 
 <!-- Fonts are self-hosted. A tool that promises no data collection should not
      phone home to a font CDN just to render its own landing page. -->
@@ -497,7 +499,7 @@ h2 em{font-style:italic;color:var(--muted)}
 .modes{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media(max-width:760px){.modes{grid-template-columns:1fr}}
 .mode{border:1px solid var(--line);border-radius:16px;padding:clamp(24px,3.2vw,34px);background:var(--surface);box-shadow:var(--shadow)}
-.mode.pro{border-color:var(--accent-line);background:linear-gradient(180deg,var(--accent-wash),transparent 62%),var(--surface)}
+.mode.advanced{border-color:var(--accent-line);background:linear-gradient(180deg,var(--accent-wash),transparent 62%),var(--surface)}
 .mode-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}
 .mode-h h3{font-family:var(--serif);font-size:29px;font-weight:400;letter-spacing:-.01em}
 .mode-sub{color:var(--dim);font-size:13.5px;margin-bottom:20px}
@@ -505,7 +507,7 @@ h2 em{font-style:italic;color:var(--muted)}
 .mode li{position:relative;padding-left:16px;font-size:14.5px;color:var(--muted);line-height:1.5}
 .mode li b{color:var(--fg);font-weight:500}
 .mode li::before{content:'';position:absolute;left:0;top:9px;width:5px;height:5px;border-radius:50%;background:var(--line-2)}
-.mode.pro li::before{background:var(--accent-ink)}
+.mode.advanced li::before{background:var(--accent-ink)}
 .mode-foot{margin-top:20px;padding-top:17px;border-top:1px solid var(--line);font-size:13px;color:var(--dim)}
 
 /* ── Shortcuts ───────────────────────────────────────────── */
@@ -600,7 +602,7 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
 <nav id="nav">
   <div class="nav-in">
     <a class="nav-mark" href="#top">
-      <img src="images/app-icon-128.png?v=2.3.0" alt="">
+      <img src="images/app-icon-128.png?v=2.4.0" alt="">
       <span>Content Edit &amp; Blur</span>
     </a>
     <div class="nav-links">
@@ -620,7 +622,7 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
 
 <header class="hero" id="top">
   <div class="wrap hero-in">
-    <a class="eyebrow rise d1" href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/releases/tag/v2.3.0" aria-label="See what changed in version 2.3.0"><b>v2.3.0</b> Highlighter · Step badges · Move &amp; resize</a>
+    <a class="eyebrow rise d1" href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/releases/tag/v2.4.0" aria-label="See what changed in version 2.4.0"><b>v2.4.0</b> Clearer tools · Direct privacy editing · Stronger reliability</a>
     <h1>
       <span class="rise d2" style="display:block">Take the screenshot.</span>
       <span class="l2 rise d3">Leave the <span class="redacted" title="Yes, that is the extension">secrets</span>.</span>
@@ -802,22 +804,22 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
       <div class="tcard rv s1">
         <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" stroke-dasharray="2 2.5"/><circle cx="12" cy="12" r="1.6"/></svg></div>
         <h3>Blur</h3>
-        <p>Click to blur. Click again to go stronger, once more to clear. Reversible, which is exactly why Redact exists alongside it.</p>
+        <p>Click an element or drag an Area, then choose Soft or Strong directly. Select an existing blur to edit or remove it.</p>
       </div>
       <div class="tcard rv s2">
         <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="8" rx="1.5" fill="currentColor"/></svg></div>
-        <h3>Redact <span class="tag">Pro</span></h3>
+        <h3>Redact <span class="tag">Advanced</span></h3>
         <p>A solid, irreversible block. Flattens text, images, video and canvas alike — nothing survives to be recovered.</p>
       </div>
       <div class="tcard rv s3">
         <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17.9 17.9A10 10 0 0 1 12 20c-7 0-10-8-10-8a18.4 18.4 0 0 1 5.1-5.9M9.9 4.2A9 9 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.2 3.2"/><path d="m2 2 20 20"/></svg></div>
-        <h3>Hide &amp; Draw</h3>
-        <p>Remove an element entirely, or drag a rectangle to blur any arbitrary region — no element required.</p>
+        <h3>Hide &amp; Area</h3>
+        <p>Remove an element entirely, or target a precise rectangular area with Blur or Redact — no element required.</p>
       </div>
       <div class="tcard rv s4">
         <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20c5-9 11-13.5 16-13.5"/><path d="M14.5 5.5 20 6.5 19 12"/><circle cx="8" cy="9" r="3.4"/></svg></div>
         <h3>Annotate</h3>
-        <p>Arrows, circles, text notes and a highlighter that keeps the text underneath readable. Boxes, a freehand pen and numbered step badges in Pro.</p>
+        <p>Arrows, circles, boxes, text notes, freehand Pen and a highlighter that keeps the text underneath readable. Advanced adds numbered Steps.</p>
       </div>
       <div class="tcard rv s5">
         <div class="tcard-i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h3.5L9 3h6l1.5 3H20a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="3.6"/></svg></div>
@@ -831,31 +833,31 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
 <section class="sec" style="padding-top:0">
   <div class="wrap">
     <div class="sec-head mid rv">
-      <span class="label">Two modes</span>
-      <h2>Simple by default.<br><em>Powerful on request.</em></h2>
-      <p>Most people need four tools and never think about it again. The rest is one click away, and stays out of the way until you ask.</p>
+      <span class="label">Two views</span>
+      <h2>Essentials by default.<br><em>Advanced when needed.</em></h2>
+      <p>The complete everyday workflow stays visible. Higher-risk and administrative controls remain one click away.</p>
     </div>
     <div class="modes">
       <div class="mode rv s1">
-        <div class="mode-h"><h3>Simple</h3></div>
+        <div class="mode-h"><h3>Essentials</h3></div>
         <p class="mode-sub">What the toolbar opens with</p>
         <ul>
-          <li><b>Edit, Blur, Hide, Draw</b> — the everyday four</li>
-          <li><b>Annotate</b> — arrows, circles, highlighter, text notes</li>
-          <li><b>Undo, Screenshot, Reset</b></li>
+          <li><b>Edit and Annotate</b> content</li>
+          <li><b>Blur and Hide</b> for privacy, with Element or Area targeting</li>
+          <li><b>Annotate</b> — arrows, circles, boxes, Pen, highlighter and text</li>
+          <li><b>Undo, Redo, Screenshot and Reset</b></li>
         </ul>
-        <p class="mode-foot">Nothing else on screen. Nothing to learn.</p>
+        <p class="mode-foot">Everything needed for the everyday workflow.</p>
       </div>
-      <div class="mode pro rv s2">
-        <div class="mode-h"><h3>Pro</h3><span class="tag">One click away</span></div>
+      <div class="mode advanced rv s2">
+        <div class="mode-h"><h3>Advanced</h3><span class="tag">One click away</span></div>
         <p class="mode-sub">Everything above, plus</p>
         <ul>
           <li><b>Redact</b> — irreversible, unlike blur</li>
           <li><b>Scope</b> — apply a rule to one page or every page on the domain</li>
           <li><b>Rules panel</b> — review, locate, re-scope or delete any rule</li>
           <li><b>Export / import</b> your rules as JSON</li>
-          <li><b>Redo</b>, plus a blur-or-block choice for drawn regions</li>
-          <li>Annotate: <b>box</b>, freehand <b>pen</b>, numbered <b>steps</b></li>
+          <li>Annotate: numbered <b>Steps</b> for walkthroughs</li>
         </ul>
         <p class="mode-foot">Your choice is remembered.</p>
       </div>
@@ -967,7 +969,7 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
 <footer>
   <div class="wrap">
     <div class="foot">
-      <div class="foot-l"><img src="images/app-icon-128.png?v=2.3.0" alt="">Content Edit &amp; Blur</div>
+      <div class="foot-l"><img src="images/app-icon-128.png?v=2.4.0" alt="">Content Edit &amp; Blur</div>
       <nav>
         <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension">GitHub</a>
         <a href="https://github.com/sponsors/HasanAboShally">Sponsor</a>

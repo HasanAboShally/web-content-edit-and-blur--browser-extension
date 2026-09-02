@@ -1,0 +1,190 @@
+/* Detached extension chrome uses the same always-light visual language as the toolbar. */
+#ceb-panel,
+#ceb-toast,
+#ceb-mode-badge {
+    box-sizing: border-box;
+    color-scheme: light;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+#ceb-panel *,
+#ceb-toast *,
+#ceb-mode-badge * {
+    box-sizing: border-box;
+}
+
+#ceb-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: min(360px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    max-height: calc(100dvh - 32px);
+    padding: 20px;
+    overflow-y: auto;
+    transform: translate(-50%, -50%);
+    border: 1px solid #d9e0ea;
+    border-radius: 14px;
+    background: #ffffff;
+    color: #172033;
+    box-shadow: 0 22px 60px rgba(28, 39, 57, 0.24), 0 4px 14px rgba(28, 39, 57, 0.10);
+    z-index: 2147483647;
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+#ceb-panel .ceb-panel-title {
+    margin: 0 0 14px;
+    color: #172033;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+#ceb-panel .ceb-panel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    min-height: 34px;
+    padding: 5px 0;
+    color: #5f6c80;
+}
+
+#ceb-panel .ceb-panel-row + .ceb-panel-row {
+    border-top: 1px solid #edf0f5;
+}
+
+#ceb-panel .ceb-panel-row kbd {
+    flex: none;
+    min-width: 40px;
+    padding: 4px 7px;
+    border: 1px solid #d9e0ea;
+    border-bottom-color: #b8c3d3;
+    border-radius: 6px;
+    background: #f6f8fb;
+    color: #344054;
+    font: 650 11px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    text-align: center;
+}
+
+#ceb-panel .ceb-panel-row span {
+    text-align: right;
+}
+
+#ceb-panel .ceb-panel-close {
+    width: 100%;
+    min-height: 40px;
+    margin: 16px 0 0;
+    padding: 8px 12px;
+    border: 1px solid #1d4ed8;
+    border-radius: 9px;
+    background: #2563eb;
+    color: #ffffff;
+    font: 650 12px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    cursor: pointer;
+    transition: background-color 0.14s ease, transform 0.08s ease;
+}
+
+#ceb-panel .ceb-panel-close:hover {
+    background: #1d4ed8;
+}
+
+#ceb-panel .ceb-panel-close:active {
+    transform: translateY(1px);
+}
+
+#ceb-panel .ceb-panel-close:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.28);
+    outline-offset: 2px;
+}
+
+#ceb-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    max-width: min(440px, calc(100vw - 32px));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    transform: translateX(-50%) translateY(0);
+    border: 1px solid #d9e0ea;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #172033;
+    box-shadow: 0 12px 34px rgba(28, 39, 57, 0.18), 0 2px 8px rgba(28, 39, 57, 0.08);
+    opacity: 1;
+    z-index: 2147483647;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.3;
+    transition: opacity 0.24s ease, transform 0.24s ease;
+}
+
+#ceb-toast .ceb-toast-hint {
+    color: #6b7688;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+#ceb-toast.is-leaving {
+    transform: translateX(-50%) translateY(8px);
+    opacity: 0;
+}
+
+#ceb-mode-badge {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 12px;
+    border: 1px solid #c8d6f4;
+    border-radius: 10px;
+    background: #ffffff;
+    color: #234eac;
+    box-shadow: 0 10px 28px rgba(28, 39, 57, 0.16);
+    opacity: 1;
+    z-index: 2147483647;
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1.2;
+    pointer-events: none;
+    transition: opacity 0.24s ease;
+}
+
+#ceb-mode-badge::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border-radius: 50%;
+    background: #2563eb;
+}
+
+#ceb-mode-badge.is-muted {
+    opacity: 0.42;
+}
+
+@media (max-width: 420px) {
+    #ceb-panel {
+        width: calc(100vw - 24px);
+        padding: 16px;
+    }
+
+    #ceb-toast {
+        bottom: 12px;
+        max-width: calc(100vw - 24px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #ceb-panel *,
+    #ceb-toast,
+    #ceb-mode-badge {
+        transition-duration: 0.01ms !important;
+    }
+}

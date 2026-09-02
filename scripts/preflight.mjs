@@ -6,12 +6,12 @@
  * This exists because `scripts/build.mjs` *writes* the version it is given into
  * the packaged manifest. That is convenient, but it means a mistyped tag is not
  * an error: tagging v9.9.9 would happily produce a package claiming 9.9.9 while
- * every file in the repository still said 2.3.0, and it would ship. The repo is
+ * every file in the repository still said 2.4.0, and it would ship. The repo is
  * the source of truth, so the tag has to agree with it rather than override it.
  *
  * Usage:
  *   node scripts/preflight.mjs            # check the repo agrees with itself
- *   node scripts/preflight.mjs 2.3.0      # also require that version
+ *   node scripts/preflight.mjs 2.4.0      # also require that version
  */
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content Edit &amp; Blur social card</title>
+<style>
+@font-face { font-family: CEB Sans; src: url('/fonts/instrument-sans-600.woff2') format('woff2'); font-weight: 600; }
+@font-face { font-family: CEB Sans; src: url('/fonts/instrument-sans-400.woff2') format('woff2'); font-weight: 400; }
+@font-face { font-family: CEB Serif; src: url('/fonts/instrument-serif-400.woff2') format('woff2'); font-weight: 400; }
+* { box-sizing: border-box; }
+html, body { width: 1200px; height: 630px; margin: 0; overflow: hidden; }
+body { color: #17171a; background: #f7f5f0; font-family: CEB Sans, sans-serif; }
+.card { position: relative; width: 100%; height: 100%; padding: 54px 62px; overflow: hidden; }
+.card::before { content: ""; position: absolute; inset: 0 0 auto; height: 10px; background: #ff5c16; }
+.brand { display: flex; align-items: center; gap: 14px; font-size: 22px; font-weight: 600; }
+.brand img { width: 48px; height: 48px; border-radius: 12px; }
+h1 { width: 710px; margin: 68px 0 22px; font: 400 74px/.95 CEB Serif, Georgia, serif; letter-spacing: -.035em; }
+h1 em { color: #c2410c; font-style: italic; }
+.sub { width: 650px; margin: 0; color: #5f5e58; font-size: 22px; line-height: 1.45; }
+.tags { display: flex; gap: 10px; margin-top: 42px; }
+.tags span { padding: 9px 13px; border: 1px solid #cec8b9; border-radius: 7px; background: #fffefb; font-size: 14px; font-weight: 600; }
+.preview { position: absolute; right: 55px; top: 76px; width: 350px; border: 1px solid #d8d4ca; border-radius: 16px; background: #fff; box-shadow: 0 24px 55px -30px rgba(50, 42, 32, .5); overflow: hidden; }
+.preview-head { display: flex; align-items: center; gap: 10px; height: 62px; padding: 0 16px; border-bottom: 1px solid #e1e5ea; font-size: 14px; font-weight: 600; }
+.preview-dot { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; color: #1554d1; background: #edf4ff; }
+.preview svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.section { padding: 15px 16px 5px; color: #637083; font-size: 11px; font-weight: 600; }
+.tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 16px 15px; }
+.tool { display: grid; place-items: center; height: 70px; border: 1px solid #dce3ed; border-radius: 10px; color: #5f6d82; font-size: 12px; }
+.tool svg { display: block; margin-bottom: 6px; color: #1f5ee5; }
+.tool.active { border-color: #1f5ee5; color: #1f5ee5; background: #edf4ff; }
+.segment { display: flex; margin: 0 16px 14px; padding: 3px; border: 1px solid #dce3ed; border-radius: 9px; background: #f5f7fa; }
+.segment span { flex: 1; padding: 8px; border-radius: 6px; text-align: center; color: #65738a; font-size: 11px; }
+.segment span.active { color: #1f5ee5; background: #fff; box-shadow: 0 1px 3px rgba(20, 42, 80, .12); }
+.action { margin: 0 16px 16px; padding: 12px; border-radius: 8px; color: #fff; background: #1f5ee5; text-align: center; font-size: 12px; font-weight: 600; }
+.privacy { position: absolute; right: 62px; bottom: 36px; color: #736f66; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="brand"><img src="/images/app-icon-128.png" alt=""><span>Content Edit &amp; Blur</span></div>
+  <h1>Take the screenshot.<br><em>Leave the secrets.</em></h1>
+  <p class="sub">Edit, blur, redact and annotate any webpage. Everything stays in your browser.</p>
+  <div class="tags"><span>Free &amp; open source</span><span>No account</span><span>No tracking</span></div>
+  <div class="preview" aria-hidden="true">
+    <div class="preview-head"><span class="preview-dot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="7" stroke-dasharray="2 2"/></svg></span>Content Edit &amp; Blur</div>
+    <div class="section">Privacy</div>
+    <div class="tools">
+      <div class="tool active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4" stroke-dasharray="2 2"/></svg>Blur</div>
+      <div class="tool"><svg viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 10.6A2 2 0 0013.4 13.4"/><path d="M6.5 6.6C3.7 8.5 2 12 2 12s3 6 10 6c1.7 0 3.2-.4 4.5-1"/><path d="M10 6.1c.6-.1 1.3-.1 2-.1 7 0 10 6 10 6s-.8 1.6-2.4 3.1"/></svg>Hide</div>
+      <div class="tool"><svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="8" rx="1.5" fill="currentColor" stroke="none"/></svg>Redact</div>
+    </div>
+    <div class="section">Target</div>
+    <div class="segment"><span class="active">Element</span><span>Area</span></div>
+    <div class="action">Choose Soft or Strong blur</div>
+  </div>
+  <div class="privacy">Chrome · Firefox · Edge</div>
+</div>
+</body>
+</html>

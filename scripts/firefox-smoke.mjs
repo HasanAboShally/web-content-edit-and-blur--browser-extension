@@ -9,7 +9,9 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
 const version = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8')).version;
 const packagePath = path.join(root, 'dist', `content-edit-blur-firefox-${version}.zip`);
 const sourceDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-firefox-smoke-'));
-const installMarker = /Installed .* as a temporary add-on/;
+// GitHub's pseudo-terminal can insert a carriage return or line break while
+// web-ext paints this status line. Match across those control boundaries.
+const installMarker = /Installed[\s\S]*? as a temporary add-on/;
 const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx';
 
 function fail(message, output = '') {

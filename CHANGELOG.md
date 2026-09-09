@@ -17,6 +17,9 @@ This project follows [Semantic Versioning](https://semver.org/).
   mockups and visual bug reports, with crawlable and LLM-readable discovery files.
 - Reproducible 440×280 and 1400×560 promotional tiles, a captioned demo video
   source and launch materials for independent product coverage.
+- A 47-second professional launch and product-explanation film with real product
+  captures, beat-synced licensed music, cinematic sound design, a music-free
+  master, editable Remotion source, and documented media provenance.
 
 ### Changed
 

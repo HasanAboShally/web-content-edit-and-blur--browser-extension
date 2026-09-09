@@ -25,6 +25,7 @@
     "publish:stores": "node scripts/publish.mjs",
     "auth:chrome": "node scripts/oauth-token.mjs",
     "video:store": "node scripts/generate-demo-video.mjs",
+    "video:launch": "npm --prefix videos/content-edit-blur-launch run render:all",
     "seo:notify": "node scripts/indexnow.mjs"
   },
   "devDependencies": {

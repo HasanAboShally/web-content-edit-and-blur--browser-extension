@@ -1,0 +1,15 @@
+{
+  "selected": "house-vibez.mp3",
+  "reason": "A steady 122 BPM house pulse supports product-demo pacing without the fashion energy of Cat Walk or the slower hip-hop candidates. Its source URL and commercial-use license are recorded, unlike the legacy tech-house track.",
+  "grid": {
+    "meanAbsoluteResidualMs": 3.604,
+    "maxResidualMs": 15.602,
+    "note": "One isolated residual is 0.6ms over the 15ms guideline; mean residual is stable and cuts use the fitted grid."
+  },
+  "rejected": {
+    "cat-walk.mp3": "More playful/fashion-led than the calm editorial product identity.",
+    "g-eazy-nba-type.mp3": "86.7 BPM is too slow for the intended feature climb.",
+    "tonight-hiphop.mp3": "Less stable grid and a heavier hip-hop character than the product needs.",
+    "bgm-tech-house.mp3": "Excluded because the original Mixkit track cannot be traced for commercial-use verification."
+  }
+}

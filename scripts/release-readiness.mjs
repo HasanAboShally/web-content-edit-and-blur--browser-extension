@@ -15,6 +15,7 @@ function run(command, args, label) {
 
 run(npm, ['run', 'assets:release'], 'Generate release media');
 run(npm, ['run', 'video:store'], 'Generate captioned store demo');
+run(npm, ['run', 'video:launch'], 'Generate professional launch film');
 run(npm, ['run', 'validate'], 'Run type, static and browser gates');
 run(npm, ['run', 'test:website'], 'Validate the website and social metadata');
 run(npm, ['run', 'test:firefox'], 'Validate the Firefox package and runtime');

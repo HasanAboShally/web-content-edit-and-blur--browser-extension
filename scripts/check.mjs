@@ -432,17 +432,23 @@ check('release media has store-safe dimensions', () => {
       throw new Error(`${file} is ${width}×${height}, expected ${expectedWidth}×${expectedHeight}`);
     }
   }
-  const videoFile = 'store-assets/video/content-edit-blur-demo.mp4';
-  const video = fs.readFileSync(path.join(root, videoFile));
-  if (video.length < 100_000 || video.subarray(4, 8).toString('ascii') !== 'ftyp') {
-    throw new Error(`${videoFile} is missing or not a usable MP4`);
+  const videoFiles = [
+    'store-assets/video/content-edit-blur-demo.mp4',
+    'store-assets/video/content-edit-blur-launch.mp4',
+    'store-assets/video/content-edit-blur-launch-no-bgm.mp4',
+  ];
+  for (const videoFile of videoFiles) {
+    const video = fs.readFileSync(path.join(root, videoFile));
+    if (video.length < 100_000 || video.subarray(4, 8).toString('ascii') !== 'ftyp') {
+      throw new Error(`${videoFile} is missing or not a usable MP4`);
+    }
   }
-  for (const file of [...STORE_PROMOS.map(([name]) => name), videoFile]) {
+  for (const file of [...STORE_PROMOS.map(([name]) => name), ...videoFiles]) {
     if (!listing.includes(file.replace('store-assets/', ''))) {
       throw new Error(`${file} is not documented in store listing copy`);
     }
   }
-  return `${STORE_SCREENSHOTS.length} screenshots, ${STORE_PROMOS.length} promo assets, video and social card`;
+  return `${STORE_SCREENSHOTS.length} screenshots, ${STORE_PROMOS.length} promo assets, ${videoFiles.length} videos and social card`;
 });
 
 check('manifest description matches shared store copy', () => {

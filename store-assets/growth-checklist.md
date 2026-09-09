@@ -14,6 +14,7 @@ Code, content and media in this repository are complete when their boxes are che
 - [x] Five reproducible 1280×800 store screenshots
 - [x] Reproducible 440×280 and 1400×560 promotional tiles
 - [x] Reproducible captioned 1280×720 H.264 demo video source
+- [x] Professional 1920×1080 launch film with editable Remotion source, licensed music/SFX and a music-free master
 - [x] Four canonical task guides with real product images
 - [x] Sitemap, llms.txt and Markdown product index updated for every guide
 - [x] Homepage guide links and README live-demo conversion path
@@ -31,7 +32,7 @@ Code, content and media in this repository are complete when their boxes are che
 - [ ] Verify the GitHub Pages site in Google Search Console
 - [ ] Select the verified website as Chrome's Official URL
 - [ ] Complete Chrome publisher identity verification if still pending
-- [ ] Upload `video/content-edit-blur-demo.mp4` to YouTube with advertisements disabled
+- [ ] Upload `video/content-edit-blur-launch.mp4` to YouTube with advertisements disabled
 - [ ] Add the resulting YouTube URL to Chrome and Edge listing drafts
 - [ ] Upload `promo/small-promo-tile.png` and `promo/marquee-promo-tile.png`
 - [ ] Run `npm run release:check`

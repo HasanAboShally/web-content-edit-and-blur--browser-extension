@@ -1,0 +1,49 @@
+{
+  "viewport": {
+    "width": 1920,
+    "height": 1080
+  },
+  "deviceScaleFactor": 2,
+  "page": {
+    "x": 0,
+    "y": 0,
+    "width": 1920,
+    "height": 896.375
+  },
+  "headline": {
+    "x": 252,
+    "y": 86,
+    "width": 710,
+    "height": 48
+  },
+  "revenue": {
+    "x": 269,
+    "y": 242.375,
+    "width": 134.5,
+    "height": 28
+  },
+  "conversion": {
+    "x": 449.5,
+    "y": 242.375,
+    "width": 134.5,
+    "height": 28
+  },
+  "customerEmail": {
+    "x": 463.65625,
+    "y": 678.875,
+    "width": 260.265625,
+    "height": 47
+  },
+  "apiKey": {
+    "x": 761.359375,
+    "y": 613.375,
+    "width": 183.640625,
+    "height": 16
+  },
+  "activity": {
+    "x": 747.65625,
+    "y": 380.375,
+    "width": 197.328125,
+    "height": 165
+  }
+}

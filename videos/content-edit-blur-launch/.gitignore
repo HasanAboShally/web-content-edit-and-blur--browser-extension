@@ -1,0 +1,5 @@
+node_modules/
+out/*.mp4
+out/*.wav
+out/qa/
+out/review/

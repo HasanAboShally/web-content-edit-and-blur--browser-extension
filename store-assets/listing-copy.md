@@ -80,8 +80,12 @@ https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/
 
 ## Promo video
 
-- Upload-ready source: `video/content-edit-blur-demo.mp4` (1280×720, captioned, no audio)
-- Generate with: `npm run video:store`
+- Primary launch/explainer: `video/content-edit-blur-launch.mp4` (1920×1080, 47.25s, captioned, licensed music and SFX)
+- Music-free master: `video/content-edit-blur-launch-no-bgm.mp4` (identical picture and SFX, no BGM)
+- Editable Remotion source, storyboard, licenses and QA: `../videos/content-edit-blur-launch/`
+- Functional fallback: `video/content-edit-blur-demo.mp4` (1280×720, captioned, no audio)
+- Generate the launch film with: `npm run video:launch`
+- Generate the functional fallback with: `npm run video:store`
 - Upload to YouTube with advertisements disabled, then add its URL to Chrome and Edge listings.
 
 ## Launch assets

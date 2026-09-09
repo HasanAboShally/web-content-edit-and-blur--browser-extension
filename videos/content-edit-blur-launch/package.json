@@ -1,0 +1,32 @@
+{
+  "name": "content-edit-blur-launch-film",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "node scripts/capture-product.mjs",
+    "dev": "remotion studio src/index.ts --no-open",
+    "typecheck": "tsc --noEmit",
+    "still": "remotion still src/index.ts ContentEditBlurLaunch",
+    "render": "remotion render src/index.ts ContentEditBlurLaunch out/content-edit-blur-launch.mp4 --codec=h264 --crf=18 --pixel-format=yuv420p",
+    "render:no-bgm": "remotion render src/index.ts ContentEditBlurLaunch out/content-edit-blur-launch-no-bgm.mp4 --codec=h264 --crf=18 --pixel-format=yuv420p --props=props-no-bgm.json",
+    "render:all": "node scripts/render-all.mjs",
+    "qa": "node scripts/qa.mjs",
+    "review": "node scripts/review-render.mjs"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.523",
+    "@remotion/fonts": "4.0.523",
+    "@remotion/media": "4.0.523",
+    "@remotion/transitions": "4.0.523",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "remotion": "4.0.523",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "playwright": "1.62.1",
+    "typescript": "7.0.2"
+  }
+}

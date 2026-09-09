@@ -148,8 +148,10 @@ These cost real debugging time. Ignore them and you will chase ghosts.
   daily users. The populations can overlap; do not present their sum as unique users
   or synthesize a cross-store rating.
 - Regenerate screenshots and promotional tiles with `npm run screenshots:store` and
-  the captioned MP4 with `npm run video:store`. The shared listing source documents
-  what still requires manual dashboard or YouTube publication.
+  the functional captioned MP4 with `npm run video:store`. The professional launch film
+  lives in `videos/content-edit-blur-launch/` and renders both audio variants with
+  `npm run video:launch`. The shared listing source documents what still requires manual
+  dashboard or YouTube publication.
 - Canonical guides must be substantial, factual and internally linked. Add every new
   indexable page to the sitemap, llms.txt, Markdown overview and website smoke test.
 

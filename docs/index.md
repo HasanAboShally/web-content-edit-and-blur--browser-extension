@@ -13,6 +13,7 @@ Content Edit & Blur runs locally in Google Chrome, Mozilla Firefox, and Microsof
 - Blur or hide page elements, and blur or redact precise rectangular areas.
 - Redact sensitive rendered content with an opaque block.
 - Annotate pages with arrows, circles, boxes, highlighter, freehand pen, text notes, and numbered steps.
+- Optionally keep new annotations attached to stable page elements through reload and reflow.
 - Undo and redo changes.
 - Save rules for one page or an entire site in local browser storage.
 - Review, rescope, delete, export, and import saved rules.

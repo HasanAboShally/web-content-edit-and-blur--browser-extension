@@ -62,8 +62,8 @@
                             </svg>
                             <span class="ceb-tb-label">Hide</span>
                         </button>
-                        <button class="ceb-tb-btn ceb-advanced-only" data-mode="redact"
-                                title="Cover content with a solid irreversible block">
+                        <button class="ceb-tb-btn" data-mode="redact"
+                            title="Cover sensitive content with opaque pixels in the screenshot">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="3" y="7" width="18" height="10" rx="1" fill="currentColor"/>
                             </svg>
@@ -97,6 +97,7 @@
                             <button class="ceb-seg-btn" type="button" data-blur-level="1" title="4 pixel blur">Soft</button>
                             <button class="ceb-seg-btn" type="button" data-blur-level="2" title="20 pixel blur">Strong</button>
                         </div>
+                        <p class="ceb-privacy-safety">Sensitive data? Use Redact, not Blur.</p>
                     </div>
                 </div>
 
@@ -170,9 +171,14 @@
                                min="1" max="20" step="1" value="3">
                         <output id="ceb-note-width-value" class="ceb-note-width-value" for="ceb-note-width-input">3 px</output>
                     </div>
-                    <button class="ceb-tb-mini ceb-note-keep" type="button" id="ceb-btn-note-keep" aria-pressed="false">
-                        Save annotations too
-                    </button>
+                    <label class="ceb-tb-toggle ceb-note-keep">
+                        <input type="checkbox" id="ceb-btn-note-keep" aria-describedby="ceb-note-keep-hint">
+                        <span class="ceb-tb-toggle-slider"></span>
+                        <span class="ceb-note-keep-copy">
+                            <span class="ceb-tb-toggle-label">Keep annotations after reload</span>
+                            <span class="ceb-note-keep-hint" id="ceb-note-keep-hint">Off by default · follows page elements when possible</span>
+                        </span>
+                    </label>
                 </div>
 
                 <div class="ceb-tb-section ceb-advanced-only" id="ceb-scope-tools">
@@ -236,7 +242,7 @@
                             <polyline points="21 8 21 21 3 21 3 8"/>
                             <rect x="1" y="3" width="22" height="5"/>
                         </svg>
-                        <span>Restore <span id="ceb-restore-count">0</span> saved changes</span>
+                        <span id="ceb-restore-label">Restore <span id="ceb-restore-count">0</span> saved changes</span>
                     </button>
                 </div>
             </div>
@@ -265,7 +271,7 @@
                     <button class="ceb-seg-btn" data-ui="essentials"
                         title="Common editing, privacy and annotation tools">Essentials</button>
                     <button class="ceb-seg-btn" data-ui="advanced"
-                        title="Adds Redact, site scope, Rules and numbered Steps">Advanced</button>
+                        title="Adds site scope, Rules and numbered Steps">Advanced</button>
                 </div>
                 <button class="ceb-tb-help" type="button" id="ceb-btn-help" title="Keyboard shortcuts" aria-label="Keyboard shortcuts">?</button>
             </div>

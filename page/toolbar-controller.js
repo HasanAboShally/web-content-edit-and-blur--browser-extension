@@ -83,8 +83,17 @@
             // Undoable, so this is no longer the destructive dead end it used to be.
             clearAllRules();
         });
-        on(toolbar.querySelector('#ceb-btn-restore'), 'click', () => {
-            sendToBackground({ action: 'restoreChanges' });
+        on(toolbar.querySelector('#ceb-btn-restore'), 'click', async () => {
+            if (!settings.persistEnabled) {
+                settings.persistEnabled = true;
+                await writeStorage({ persistEnabled: true });
+                updateToolbarState();
+            }
+            const restored = await resumePersistence();
+            showToast(restored
+                ? `Restored ${restored} saved change${restored === 1 ? '' : 's'}`
+                : 'No saved changes found');
+            checkSavedChanges();
         });
 
         // Scope + privacy-target segmented controls
@@ -184,23 +193,30 @@
 
         // One page-level decision rather than a flag per mark: the user is deciding
         // whether this page's annotations are a keepsake or scaffolding for one screenshot.
-        on(toolbar.querySelector('#ceb-btn-note-keep'), 'click', () => {
-            const effective = settings.persistEnabled && settings.annotateKeep;
-            settings.annotateKeep = !effective;
-            if (settings.annotateKeep && !settings.persistEnabled) {
+        on(toolbar.querySelector('#ceb-btn-note-keep'), 'change', async event => {
+            settings.annotateKeep = event.currentTarget.checked;
+            const resumesPersistence = settings.annotateKeep && !settings.persistEnabled;
+            if (resumesPersistence) {
                 settings.persistEnabled = true;
-                writeStorage({ persistEnabled: true });
             }
-            writeStorage({ annotateKeep: settings.annotateKeep });
-            state.annotations.forEach(a => { a.persist = settings.annotateKeep; });
+            await writeStorage({
+                annotateKeep: settings.annotateKeep,
+                ...(resumesPersistence ? { persistEnabled: true } : {})
+            });
+            if (resumesPersistence) await resumePersistence();
+            state.annotations.forEach(a => {
+                a.persist = settings.annotateKeep;
+                if (settings.annotateKeep && !a.anchor) reanchorAnnotation(a);
+                if (!settings.annotateKeep) delete a.anchor;
+            });
             updateToolbarState();
             if (state.annotations.length) {
                 commit(settings.annotateKeep
-                    ? 'Annotations will be remembered on this page'
+                    ? 'Annotations will be kept on this page'
                     : 'Annotations are session-only again');
             } else {
                 showToast(settings.annotateKeep
-                    ? 'New annotations will be remembered'
+                    ? 'New annotations will be kept after reload'
                     : 'New annotations are session-only');
             }
         });
@@ -238,14 +254,20 @@
         // Master persistence toggle. Saved data stays local to this browser.
         const persistToggle = toolbar.querySelector('#ceb-persist-toggle');
         persistToggle.checked = settings.persistEnabled;
-        on(persistToggle, 'change', () => {
+        on(persistToggle, 'change', async () => {
             settings.persistEnabled = persistToggle.checked;
-            writeStorage({ persistEnabled: settings.persistEnabled });
-            if (settings.persistEnabled) saveChanges();
+            await writeStorage({ persistEnabled: settings.persistEnabled });
             updateToolbarState();
-            showToast(settings.persistEnabled
-                ? 'Changes will be remembered in this browser'
-                : 'Changes are session-only; saved data is paused');
+            if (settings.persistEnabled) {
+                const restored = await resumePersistence();
+                if (!settings.persistEnabled) return;
+                showToast(restored
+                    ? `Restored ${restored} saved change${restored === 1 ? '' : 's'}`
+                    : 'Changes will be remembered in this browser');
+            } else {
+                showToast('Changes are session-only; saved data is paused');
+            }
+            checkSavedChanges();
         });
         
         updateToolbarState();
@@ -277,20 +299,10 @@
         writeStorage({ uiMode: settings.uiMode });
         if (toolbar) toolbar.setAttribute('data-ui', settings.uiMode);
         const privacySelection = selectedPrivacyItem();
-        // Leaving Advanced while in an Advanced-only mode would strand the user in a
-        // mode whose control disappeared.
-        if (settings.uiMode === 'essentials' && currentModeId === 'redact') {
-            requestMode('idle');
-        }
+        // Leaving Advanced must not retain an invisible site scope.
         if (settings.uiMode === 'essentials' && privacySelection
-            && (privacySelection.item.kind === 'redact'
-                || (privacySelection.type === 'rule' && privacySelection.item.scope === 'site'))) {
+            && privacySelection.type === 'rule' && privacySelection.item.scope === 'site') {
             clearPrivacySelection(false);
-            if (currentModeId === 'draw' && privacySelection.item.kind === 'redact') requestMode('idle');
-        }
-        if (settings.uiMode === 'essentials' && settings.drawKind === 'redact') {
-            settings.drawKind = 'blur';
-            writeStorage({ drawKind: 'blur' });
         }
         if (settings.uiMode === 'essentials' && settings.defaultScope === 'site') {
             settings.defaultScope = 'page';
@@ -557,9 +569,9 @@
                 ['↑ / ↓', 'Grow or shrink the selection'],
                 ['Elements', 'Click Blur, Hide or Redact'],
                 ['Area', 'Drag a rectangle to blur or redact'],
-                ['Annotate', 'Use Pen for freehand drawing'],
+                ['Annotations', 'Session-only unless Keep annotations after reload is on'],
                 ['Esc', 'Exit the current mode'],
-                ['Advanced', 'Adds redaction, site rules and Steps']
+                ['Advanced', 'Adds site rules and numbered Steps']
             ]);
         } catch (e) {}
     }
@@ -575,9 +587,14 @@
 
             const section = toolbar.querySelector('#ceb-restore-section');
             const countEl = toolbar.querySelector('#ceb-restore-count');
+            const label = toolbar.querySelector('#ceb-restore-label');
             // Only offer a restore when the page is not already showing them.
             if (total > 0 && ruleCount() === 0) {
                 if (countEl) countEl.textContent = String(total);
+                if (label) {
+                    label.firstChild.textContent = settings.persistEnabled
+                        ? 'Restore ' : 'Resume and restore ';
+                }
                 if (section) section.style.display = '';
             } else if (section) {
                 section.style.display = 'none';

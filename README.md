@@ -54,7 +54,7 @@ Or load it unpacked — see [CONTRIBUTING.md](CONTRIBUTING.md#running-it-locally
 | **Hide** | Click an element to remove it entirely. |
 | **Annotate** | Arrows, circles, boxes, highlighter, text notes and a freehand Pen. |
 | **Screenshot** | Capture the page with your edits applied; the toolbar hides itself first. |
-| **Redact** *(Advanced)* | Cover a whole element, or switch Target to Area and drag a precise solid block. Blur can sometimes be reversed from an image — redaction cannot. |
+| **Redact** | Cover a whole element, or switch Target to Area and drag a precise solid block. Blur can sometimes be reversed from an image — redaction cannot. |
 
 **Remember changes** is on by default. Eligible changes are stored only in your browser
 and return after reload; turn it off for a session-only workflow.
@@ -67,10 +67,10 @@ or remove it explicitly. Selected Areas can also be moved, resized and keyboard-
 ### Essentials and Advanced
 
 The toolbar opens in **Essentials**, which includes the everyday editing, privacy and
-annotation workflow — including Undo, Redo, boxes and freehand Pen. Switching to
-**Advanced** (bottom-left) adds the higher-risk or administrative tools: Redact,
-per-site rule **scope**, the **rules panel**, JSON **export/import**, and numbered
-**step** badges. Your choice is remembered.
+annotation workflow — including Redact, Undo, Redo, boxes and freehand Pen. Switching
+to **Advanced** (bottom-left) adds administrative tools: per-site rule **scope**, the
+**rules panel**, JSON **export/import**, and numbered **step** badges. Your choice is
+remembered.
 
 ## Using it
 
@@ -95,8 +95,10 @@ uses `mix-blend-mode: multiply`, so text underneath stays black and readable ins
 washing out to grey.
 
 Annotations are **not saved by default** — most exist to explain one screenshot. Turn on
-**Save annotations too** to include them in Remember changes. They are always tied to a
-single page; an arrow at a fixed position means nothing on another URL.
+**Keep annotations after reload** to include them in Remember changes. New kept marks
+attach to the page element beneath their target when a stable selector is available, so
+they follow ordinary reflow; raw document coordinates remain the fallback. Annotations
+are always tied to a single page.
 
 ## Shortcuts
 

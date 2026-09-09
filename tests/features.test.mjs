@@ -29,8 +29,8 @@ const externalRedactUi = await page.evaluate(() => ({
   visible: getComputedStyle(document.querySelector('.ceb-tb-btn[data-mode="redact"]')).display,
   active: document.querySelector('.ceb-tb-btn[data-mode="redact"]')?.classList.contains('active'),
 }));
-check('an external Redact activation reveals its Advanced control',
-  externalRedactUi.view === 'advanced' && externalRedactUi.visible !== 'none' && externalRedactUi.active,
+check('Redact is visible and active in Essentials',
+  externalRedactUi.view === 'essentials' && externalRedactUi.visible !== 'none' && externalRedactUi.active,
   JSON.stringify(externalRedactUi));
 await page.click('#title');
 await page.waitForTimeout(500);
@@ -166,7 +166,7 @@ const redactBtnShown = await page.evaluate(() => {
   const b = document.querySelector('.ceb-tb-btn[data-mode="redact"]');
   return b ? getComputedStyle(b).display !== 'none' : false;
 });
-check('Redact button is visible in Advanced', redactBtnShown);
+check('Redact remains visible in Advanced', redactBtnShown);
 
 check('activate Area targeting', (await activate('draw')) === 'ok');
 await page.waitForTimeout(500);
@@ -192,9 +192,9 @@ const essentialsArea = await page.evaluate(() => ({
   redoDisplay: getComputedStyle(document.querySelector('#ceb-btn-redo')).display,
   hint: document.querySelector('#ceb-mode-indicator')?.textContent,
 }));
-check('Essentials never leaves a hidden Redact area effect active',
-  essentialsArea.areaMode && essentialsArea.effect === 'blur'
-    && essentialsArea.redactDisplay === 'none' && /blur an area/i.test(essentialsArea.hint),
+check('Essentials keeps a Redact area effect visible and active',
+  essentialsArea.areaMode && essentialsArea.effect === 'redact'
+    && essentialsArea.redactDisplay !== 'none' && /redact an area/i.test(essentialsArea.hint),
   JSON.stringify(essentialsArea));
 check('Redo remains available in Essentials', essentialsArea.redoDisplay !== 'none', JSON.stringify(essentialsArea));
 await page.click('#ceb-ui-seg .ceb-seg-btn[data-ui="advanced"]');
@@ -315,8 +315,8 @@ const essentialsHidden = await page.evaluate(async () => {
     redo: getComputedStyle(document.querySelector('#ceb-btn-redo')).display,
   };
 });
-check('Essentials hides Redact and rule management but keeps Redo',
-  essentialsHidden.redact === 'none' && essentialsHidden.rules === 'none'
+check('Essentials keeps Redact and Redo but hides rule management',
+  essentialsHidden.redact !== 'none' && essentialsHidden.rules === 'none'
     && essentialsHidden.redo !== 'none',
   JSON.stringify(essentialsHidden));
 
@@ -351,7 +351,7 @@ const migratedSimple = {
 };
 check('legacy Simple preference migrates to safe Essentials defaults',
   migratedSimple.view === 'essentials' && migratedSimple.uiMode === 'essentials'
-    && migratedSimple.scope === 'page' && migratedSimple.areaEffect === 'blur'
+    && migratedSimple.scope === 'page' && migratedSimple.areaEffect === 'redact'
     && migratedSimple.annotateTool === 'arrow',
   JSON.stringify(migratedSimple));
 

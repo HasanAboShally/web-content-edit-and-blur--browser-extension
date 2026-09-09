@@ -381,6 +381,7 @@
             if (!note) return;
 
             if (drag.moved) {
+                reanchorAnnotation(note);
                 commit(drag.mode === 'move' ? 'Annotation moved' : 'Annotation resized');
                 return;
             }
@@ -433,7 +434,10 @@
             boxW: 220,
             persist: settings.annotateKeep === true
         });
-        if (note) state.annotations.push(note);
+        if (note) {
+            state.annotations.push(note);
+            reanchorAnnotation(note);
+        }
         return note;
     }
 

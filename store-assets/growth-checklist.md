@@ -7,6 +7,9 @@ Code, content and media in this repository are complete when their boxes are che
 - [x] Neutral, non-modal review request after the third successful screenshot
 - [x] Permanent local dismissal and no sentiment gating or requested star value
 - [x] Browser-specific review destinations
+- [x] Kept annotations follow stable page elements across reload and reflow
+- [x] Persistence resumes by restoring saved state before writing live state
+- [x] Redact is available in Essentials with explicit Blur safety guidance
 - [x] Corrected Edit-mode first store screenshot
 - [x] Five reproducible 1280×800 store screenshots
 - [x] Reproducible 440×280 and 1400×560 promotional tiles

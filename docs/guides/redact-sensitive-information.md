@@ -13,7 +13,7 @@ Content Edit & Blur paints an opaque block over a selected element or rectangula
 ## Workflow
 
 1. Scan the visible page for names, email addresses, account numbers, financial values, internal URLs, tokens and API keys.
-2. Open the toolbar, switch to Advanced and choose Redact.
+2. Open the toolbar and choose Redact from the Privacy tools.
 3. Use Element for a clean page element or Area for a fixed rectangle over mixed content, images, charts or canvas.
 4. Click or drag to apply each redaction. Existing privacy effects can be selected, changed or removed; Areas can be moved and resized.
 5. Use Screenshot to capture the visible viewport. The toolbar, picker, editing handles and transient controls hide; finished privacy effects and annotations remain.

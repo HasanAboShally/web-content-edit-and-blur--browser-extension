@@ -21,6 +21,7 @@
     function syncViewportOverlays() {
         if (pickerTarget) drawPickerOverlay();
         if (selectedPrivacy) syncPrivacySelection();
+        syncRenderedAnnotationAnchors();
     }
 
     function handlePageMessage(message, sender, sendResponse) {
@@ -88,6 +89,7 @@
         const note = selectedAnnotation();
         if (!note) return false;
         note.points = note.points.map(p => [p[0] + dx, p[1] + dy]);
+        reanchorAnnotation(note);
         // One key press is one reversible move. No toast: key repeat would create a wall
         // of notifications while the user is simply positioning an object.
         commit();
@@ -300,10 +302,12 @@
         let storageListenerInstalled = false;
         let runtimeListenerInstalled = false;
         let restoreModeChanged = null;
+        let stopAnnotationAnchorObserver = null;
 
         try {
             initImageLoader();
             restoreModeChanged = installModeChangedToolbarHook();
+            stopAnnotationAnchorObserver = startAnnotationAnchorObserver();
 
             // Register every long-lived side effect here, after all declarations load.
             window.addEventListener('popstate', handleRouteChange, { signal });
@@ -311,10 +315,21 @@
             document.addEventListener('mouseover', handlePickerMouseOver, { signal });
             document.addEventListener('mouseout', handlePickerMouseOut, { signal });
             window.addEventListener('scroll', syncViewportOverlays, { passive: true, signal });
+            document.addEventListener('scroll', scheduleAnnotationAnchorSync,
+                { capture: true, passive: true, signal });
             window.addEventListener('resize', syncViewportOverlays, { signal });
+            document.addEventListener('load', scheduleAnnotationAnchorSync, { capture: true, signal });
+            document.addEventListener('transitionend', scheduleAnnotationAnchorSync, { capture: true, signal });
+            document.addEventListener('animationend', scheduleAnnotationAnchorSync, { capture: true, signal });
             document.addEventListener('keydown', handlePageKeydown, { signal });
             document.addEventListener('click', handlePageClick, { capture: true, signal });
-            routeTimer = setInterval(checkForRouteChange, 400);
+            routeTimer = setInterval(() => {
+                checkForRouteChange();
+                // Position can change without a ResizeObserver entry (for example a
+                // sibling is reordered inside a fixed-height layout). Skip immediately
+                // when there are no anchored annotations.
+                scheduleAnnotationAnchorSync();
+            }, 400);
 
             try {
                 chrome.storage.onChanged.addListener(handleStorageChanged);
@@ -340,6 +355,7 @@
             if (runtimeListenerInstalled) {
                 try { chrome.runtime.onMessage.removeListener(handlePageMessage); } catch (e) {}
             }
+            if (stopAnnotationAnchorObserver) stopAnnotationAnchorObserver();
             if (restoreModeChanged) restoreModeChanged();
             delete window.__cebInitialized;
             throw error;

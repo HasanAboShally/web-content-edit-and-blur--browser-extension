@@ -26,8 +26,8 @@ await page.evaluate(() => document.getElementById('ceb-panel')?.remove());
 const initialPrivacyUi = await page.evaluate(() => ({
   strengthVisible: !document.getElementById('ceb-blur-strength')?.hidden,
   activeStrength: document.querySelector('#ceb-blur-strength-seg .active')?.textContent,
-  rememberLabel: document.querySelector('.ceb-tb-toggle-label')?.textContent,
-  rememberTitle: document.querySelector('.ceb-tb-toggle')?.title,
+  rememberLabel: document.querySelector('.ceb-toolbar-footer .ceb-tb-toggle-label')?.textContent,
+  rememberTitle: document.querySelector('.ceb-toolbar-footer .ceb-tb-toggle')?.title,
 }));
 check('Blur exposes a direct strength choice before applying',
   initialPrivacyUi.strengthVisible && initialPrivacyUi.activeStrength === 'Soft',
@@ -296,25 +296,80 @@ const persistenceOff = await page.evaluate(() => {
 check('master persistence can be paused', persistenceOff && (await readKey('persistEnabled')) === false);
 let persistenceUi = await page.evaluate(() => ({
   checked: document.getElementById('ceb-persist-toggle')?.checked,
-  annotationLabel: document.getElementById('ceb-btn-note-keep')?.textContent,
-  annotationPressed: document.getElementById('ceb-btn-note-keep')?.getAttribute('aria-pressed'),
+  annotationChecked: document.getElementById('ceb-btn-note-keep')?.checked,
+  annotationLabel: document.querySelector('.ceb-note-keep .ceb-tb-toggle-label')?.textContent,
+  annotationHint: document.getElementById('ceb-note-keep-hint')?.textContent,
 }));
 check('paused persistence does not claim annotations are remembered',
-  !persistenceUi.checked && persistenceUi.annotationLabel === 'Save annotations too'
-    && persistenceUi.annotationPressed === 'false',
+  !persistenceUi.checked && !persistenceUi.annotationChecked
+    && persistenceUi.annotationLabel === 'Keep annotations after reload'
+    && /off by default/i.test(persistenceUi.annotationHint),
   JSON.stringify(persistenceUi));
-await page.click('#ceb-btn-note-keep');
+await page.click('.ceb-note-keep');
 await wait(300);
 persistenceUi = await page.evaluate(() => ({
   checked: document.getElementById('ceb-persist-toggle')?.checked,
-  annotationLabel: document.getElementById('ceb-btn-note-keep')?.textContent,
-  annotationPressed: document.getElementById('ceb-btn-note-keep')?.getAttribute('aria-pressed'),
+  annotationChecked: document.getElementById('ceb-btn-note-keep')?.checked,
+  annotationLabel: document.querySelector('.ceb-note-keep .ceb-tb-toggle-label')?.textContent,
+  annotationHint: document.getElementById('ceb-note-keep-hint')?.textContent,
 }));
 check('saving annotations also enables the required master persistence',
   (await readKey('persistEnabled')) === true && (await readKey('annotateKeep')) === true
-    && persistenceUi.checked && persistenceUi.annotationLabel === 'Annotations remembered'
-    && persistenceUi.annotationPressed === 'true',
+    && persistenceUi.checked && persistenceUi.annotationChecked
+    && persistenceUi.annotationLabel === 'Keep annotations after reload'
+    && /kept on this page/i.test(persistenceUi.annotationHint),
   JSON.stringify(persistenceUi));
+
+// A paused reload keeps the stored payload out of live state. Re-enabling persistence
+// must merge that payload before the empty live page is written, or the saved key is
+// mistaken for an intentional deletion.
+await activate('blur');
+await wait(450);
+await page.click('#title');
+await wait(500);
+const savedBeforePause = await readKey(pageKey);
+check('a blur is saved before persistence is paused',
+  savedBeforePause?.rules?.some(rule => rule.selector === '#title'),
+  JSON.stringify(savedBeforePause?.rules || []));
+await page.evaluate(() => {
+  const input = document.getElementById('ceb-persist-toggle');
+  input.checked = false;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+});
+await wait(250);
+await page.reload({ waitUntil: 'load' });
+await wait(500);
+await activate('blur');
+await wait(700);
+const pausedReload = {
+  stored: await readKey(pageKey),
+  ui: await page.evaluate(() => ({
+    filter: getComputedStyle(document.getElementById('title')).filter,
+    restore: document.getElementById('ceb-restore-label')?.textContent,
+  })),
+};
+check('a paused reload preserves the saved key without applying it',
+  pausedReload.stored?.rules?.some(rule => rule.selector === '#title')
+    && pausedReload.ui.filter === 'none'
+    && /resume and restore/i.test(pausedReload.ui.restore),
+  JSON.stringify(pausedReload));
+await page.evaluate(() => {
+  const input = document.getElementById('ceb-persist-toggle');
+  input.checked = true;
+  input.dispatchEvent(new Event('change', { bubbles: true }));
+});
+await wait(800);
+const resumed = {
+  stored: await readKey(pageKey),
+  ui: await page.evaluate(() => ({
+    filter: getComputedStyle(document.getElementById('title')).filter,
+    restoreVisible: getComputedStyle(document.getElementById('ceb-restore-section')).display !== 'none',
+  })),
+};
+check('resuming persistence restores the saved blur without deleting its key',
+  resumed.stored?.rules?.some(rule => rule.selector === '#title')
+    && /blur/.test(resumed.ui.filter) && !resumed.ui.restoreVisible,
+  JSON.stringify(resumed));
 
 // Before Area levels existed, every saved blur Area rendered at 20px. Preserve that
 // appearance when loading an old v2 payload with no level field.

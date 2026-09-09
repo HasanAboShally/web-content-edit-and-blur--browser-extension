@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import http from 'node:http';
 import os from 'node:os';
@@ -10,6 +11,7 @@ const source = fs.readFileSync(path.join(root, 'store-assets', 'showcase.html'))
 const promoSource = fs.readFileSync(path.join(root, 'store-assets', 'promo-card.html'));
 const outputDir = path.join(root, 'store-assets', 'screenshots');
 const promoDir = path.join(root, 'store-assets', 'promo');
+const guideDir = path.join(root, 'docs', 'guide-assets');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-store-shots-'));
 const outputs = [
   '01-edit-and-smart-pick.png',
@@ -17,6 +19,12 @@ const outputs = [
   '03-draw-to-blur.png',
   '04-annotate-and-highlight.png',
   '05-rules-and-site-scope.png',
+];
+const guideAssets = [
+  [outputs[0], 'edit-webpage-text-for-mockups'],
+  [outputs[1], 'redact-sensitive-information'],
+  [outputs[2], 'blur-webpage-before-screen-sharing'],
+  [outputs[3], 'annotate-webpage-for-bug-report'],
 ];
 
 const staticRoutes = new Map([
@@ -130,9 +138,24 @@ async function capturePromo(name, width, height) {
   console.log(`Created ${path.relative(root, file)}`);
 }
 
+function createGuideAssets(sourceName, targetName) {
+  const sourceFile = path.join(outputDir, sourceName);
+  const targets = [
+    ['magick', [sourceFile, '-quality', '90', path.join(guideDir, `${targetName}.jpg`)]],
+    ['cwebp', ['-quiet', '-q', '82', sourceFile, '-o', path.join(guideDir, `${targetName}.webp`)]],
+  ];
+  for (const [command, args] of targets) {
+    const result = spawnSync(command, args, { stdio: 'inherit' });
+    if (result.error?.code === 'ENOENT') throw new Error(`${command} is required to generate guide assets`);
+    if (result.status !== 0) throw new Error(`${command} exited ${result.status}`);
+  }
+  console.log(`Created docs/guide-assets/${targetName}.{jpg,webp}`);
+}
+
 try {
   fs.mkdirSync(outputDir, { recursive: true });
   fs.mkdirSync(promoDir, { recursive: true });
+  fs.mkdirSync(guideDir, { recursive: true });
   context = await chromium.launchPersistentContext(profile, {
     channel: 'chromium',
     headless: true,
@@ -219,6 +242,8 @@ try {
     if (body) body.scrollTop = body.scrollHeight;
   });
   await capture(5, shot.errors);
+
+  guideAssets.forEach(([sourceName, targetName]) => createGuideAssets(sourceName, targetName));
 
   await capturePromo('small-promo-tile.png', 440, 280);
   await capturePromo('marquee-promo-tile.png', 1400, 560);

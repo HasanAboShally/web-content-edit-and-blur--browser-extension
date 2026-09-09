@@ -150,6 +150,50 @@
         (incoming.annotations || []).forEach(a => { if (!noteIds.has(a.id)) target.annotations.push(a); });
     }
 
+    function savedItemCount(pageData, siteData) {
+        return [pageData, siteData].reduce((total, data) => total
+            + data.rules.length + data.areas.length
+            + data.replacements.length + data.annotations.length, 0);
+    }
+
+    function adoptSavedScopes(pageData, siteData) {
+        mergeInto(state, cloneState(siteData));
+        mergeInto(state, cloneState(pageData));
+        renderState();
+
+        // Saved content is a baseline, not a new user action. Merge it into every
+        // snapshot so the next Undo never removes content merely because persistence
+        // was resumed after a refresh.
+        history = history.map(snap => {
+            const merged = cloneState(snap);
+            mergeInto(merged, cloneState(siteData));
+            mergeInto(merged, cloneState(pageData));
+            return merged;
+        });
+        updateToolbarState();
+    }
+
+    async function resumePersistence() {
+        if (!settings.persistEnabled || !isPersistableUrl(window.location.href)) return 0;
+        try {
+            const pageKey = storageKeyForUrl(window.location.href);
+            const siteKey = siteKeyForUrl(window.location.href);
+            const stored = await readStorage([pageKey, siteKey], null);
+            // The user may have switched persistence off again while storage was read.
+            if (!settings.persistEnabled || !stored) return 0;
+            const pageData = migrateChanges(stored[pageKey], 'page');
+            const siteData = migrateChanges(stored[siteKey], 'site');
+            siteScopeLoaded = true;
+            adoptSavedScopes(pageData, siteData);
+            // Only write after the saved baseline is back in memory. Writing first can
+            // turn an empty paused page into a deletion request for its still-saved key.
+            saveChanges();
+            return savedItemCount(pageData, siteData);
+        } catch (e) {
+            return 0;
+        }
+    }
+
     // The content script restores its own state rather than waiting to be handed it,
     // which removes the injection/message race the background script used to sleep
     // through. Keyed on this frame's own URL, and merged with any site-wide rules.
@@ -185,14 +229,10 @@
                 ANNOTATION_STROKE_DEFAULT
             );
             // Site-wide creation is intentionally an Advanced decision. Never retain an
-            // invisible site scope when restoring the Essentials view.
+            // invisible site scope or specialized Step tool in the Essentials view.
             if (settings.uiMode === 'essentials') {
                 settings.defaultScope = 'page';
                 if (stored.defaultScope === 'site') writeStorage({ defaultScope: 'page' });
-                if (settings.drawKind === 'redact') {
-                    settings.drawKind = 'blur';
-                    writeStorage({ drawKind: 'blur' });
-                }
                 if (ADVANCED_ANNOTATE_TOOLS.includes(settings.annotateTool)) {
                     settings.annotateTool = 'arrow';
                     writeStorage({ annotateTool: 'arrow' });
@@ -214,21 +254,7 @@
             // but this read is async, so a context-menu action (background injects, then
             // immediately messages) can land first. Assigning to `state` here would
             // silently discard it.
-            mergeInto(state, cloneState(siteData));
-            mergeInto(state, cloneState(pageData));
-
-            renderState();
-
-            // Restored rules are the baseline — undo must not peel them off. Folding them
-            // into every existing snapshot keeps that true while leaving anything the user
-            // did during the read undoable.
-            history = history.map(snap => {
-                const merged = cloneState(snap);
-                mergeInto(merged, cloneState(siteData));
-                mergeInto(merged, cloneState(pageData));
-                return merged;
-            });
-            updateToolbarState();
+            adoptSavedScopes(pageData, siteData);
         } catch (e) {
             // Extension context can be gone (reloaded/updated) - nothing to restore.
         }
@@ -318,6 +344,14 @@
         return { ...s, annotations: (s.annotations || []).filter(a => a.kind !== 'text' || a.text !== '') };
     }
 
+    function applyAnnotationPersistencePreference() {
+        state.annotations.forEach(a => {
+            a.persist = settings.annotateKeep;
+            if (a.persist && !a.anchor) reanchorAnnotation(a);
+            if (!a.persist) delete a.anchor;
+        });
+    }
+
     function canUndo() { return historyIndex > 0; }
     function canRedo() { return historyIndex < history.length - 1; }
 
@@ -328,6 +362,7 @@
         }
         historyIndex -= 1;
         state = cloneState(history[historyIndex]);
+        applyAnnotationPersistencePreference();
         renderState();
         saveChanges();
         updateToolbarState();
@@ -341,6 +376,7 @@
         }
         historyIndex += 1;
         state = cloneState(history[historyIndex]);
+        applyAnnotationPersistencePreference();
         renderState();
         saveChanges();
         updateToolbarState();

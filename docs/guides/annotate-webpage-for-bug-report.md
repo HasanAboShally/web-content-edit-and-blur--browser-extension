@@ -4,7 +4,7 @@ Canonical guide: https://hasanaboshally.github.io/web-content-edit-and-blur--bro
 
 > Show the whole relevant region, mark one primary problem, and attach reproduction details that an image cannot contain.
 
-A circle, box or arrow removes ambiguity about the failing control. A highlight identifies incorrect copy. Numbered Steps explain a short order of operations. Annotations are session-only by default unless Save annotations too is enabled.
+A circle, box or arrow removes ambiguity about the failing control. A highlight identifies incorrect copy. Numbered Steps explain a short order of operations. Annotations are session-only by default unless **Keep annotations after reload** is enabled. New kept marks follow the page element beneath them when a stable target is available.
 
 ## Workflow
 

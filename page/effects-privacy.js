@@ -96,9 +96,7 @@
         state.areas.forEach(renderArea);
 
         // After areas, so an annotation can point at something that has been blurred.
-        clearRenderedAnnotations();
-        state.annotations.forEach(renderAnnotation);
-        syncAnnotationSelection();
+        renderAnnotations();
         syncPrivacySelection();
 
         syncReplacements();
@@ -339,16 +337,6 @@
     }
 
     function modeChanged(newModeId) {
-        // Redact can be activated from a user-assigned keyboard shortcut. Reveal its
-        // Advanced control instead of leaving the user in a mode with no visible owner.
-        if (newModeId === 'redact' && settings.uiMode === 'essentials') {
-            settings.uiMode = 'advanced';
-            writeStorage({ uiMode: settings.uiMode });
-        }
-        if (newModeId === 'draw' && settings.uiMode === 'essentials' && settings.drawKind === 'redact') {
-            settings.drawKind = 'blur';
-            writeStorage({ drawKind: settings.drawKind });
-        }
         const privacySelection = selectedPrivacyItem();
         if (privacySelection && !privacySelectionCompatible(privacySelection, newModeId)) {
             clearPrivacySelection(false);

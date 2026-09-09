@@ -10,6 +10,9 @@ This project follows [Semantic Versioning](https://semver.org/).
 - A one-time, non-modal request for an honest store review after the third
   successful screenshot. Dismissing it is permanent, the choice stays local, and
   there is no sentiment gating or request for a particular rating.
+- Element anchors for kept annotations, so new arrows, shapes, highlights, notes
+  and drawings follow the page element beneath them across reloads and reflow when
+  a stable selector is available. Raw document coordinates remain the fallback.
 - Practical website guides for privacy-safe screenshots, screen sharing, product
   mockups and visual bug reports, with crawlable and LLM-readable discovery files.
 - Reproducible 440×280 and 1400×560 promotional tiles, a captioned demo video
@@ -21,8 +24,18 @@ This project follows [Semantic Versioning](https://semver.org/).
   visual bug reports, sensitive-data redaction and clean screenshots.
 - Corrected the first store screenshot so Edit mode is visibly active while the
   page copy is being changed.
+- Moved Redact into Essentials beside Blur and Hide, with an in-toolbar reminder
+  that sensitive data should be redacted rather than blurred.
+- Replaced the action-like annotation save button with a native
+  **Keep annotations after reload** setting and explicit session-only guidance.
 - Expanded website validation to guard guide metadata, structured data, image
   loading, internal links, sitemap coverage and mobile reflow.
+
+### Fixed
+
+- Turning **Remember changes** back on after a paused reload no longer writes an
+  empty live page over the still-saved state. Saved page and site changes are
+  merged before persistence resumes.
 
 ## [2.4.0]
 

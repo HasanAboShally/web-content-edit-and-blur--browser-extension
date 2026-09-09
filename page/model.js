@@ -9,6 +9,7 @@
     /** @typedef {'blur' | 'redact'} AreaKind */
     /** @typedef {'ellipse' | 'rect' | 'arrow' | 'pen' | 'marker' | 'text' | 'step'} AnnotationKind */
     /** @typedef {'nw' | 'ne' | 'sw' | 'se'} AreaCorner */
+    /** @typedef {{ selector: string, x: number, y: number, rx?: number, ry?: number }} AnnotationAnchor */
 
     /**
      * @typedef {{
@@ -47,7 +48,8 @@
      *   size: number,
      *   boxW: number,
      *   persist: boolean,
-     *   scope: 'page'
+    *   scope: 'page',
+    *   anchor?: AnnotationAnchor
      * }} Annotation
      */
 
@@ -179,7 +181,8 @@
     //   area        { id, kind: 'blur'|'redact', x, y, width, height, scope }
     //   replacement { id, oldText, newText, scope }
     //   annotation  { id, kind: 'ellipse'|'rect'|'arrow'|'pen'|'marker'|'text'|'step',
-    //                 points: [[x,y], ...], text, color, size, boxW, persist, scope }
+    //                 points: [[x,y], ...], text, color, size, boxW, persist, scope,
+    //                 anchor?: { selector, x, y } }
     //
     // scope is 'page' (this exact URL) or 'site' (every page on this origin).
     //
@@ -334,6 +337,26 @@
     }
 
     /**
+     * @param {unknown} value
+     * @returns {AnnotationAnchor | null}
+     */
+    function safeAnnotationAnchor(value) {
+        if (!value || typeof value !== 'object') return null;
+        const raw = /** @type {{ selector?: unknown, x?: unknown, y?: unknown, rx?: unknown, ry?: unknown }} */ (value);
+        if (typeof raw.selector !== 'string' || !raw.selector || raw.selector.length > 1000) return null;
+        if (typeof raw.x !== 'number' || !Number.isFinite(raw.x)
+            || typeof raw.y !== 'number' || !Number.isFinite(raw.y)) return null;
+        /** @type {AnnotationAnchor} */
+        const anchor = { selector: raw.selector, x: raw.x, y: raw.y };
+        if (typeof raw.rx === 'number' && Number.isFinite(raw.rx)
+            && typeof raw.ry === 'number' && Number.isFinite(raw.ry)) {
+            anchor.rx = Math.max(0, Math.min(1, raw.rx));
+            anchor.ry = Math.max(0, Math.min(1, raw.ry));
+        }
+        return anchor;
+    }
+
+    /**
      * @param {unknown} points
      * @param {number} minCount
      * @returns {Point[] | null}
@@ -371,7 +394,8 @@
             ? decimate(points, PEN_MAX_POINTS)
             : points.slice(0, ANCHORED_KINDS.includes(kind) ? 1 : 2);
 
-        return {
+        /** @type {Annotation} */
+        const annotation = {
             id: raw.id || newId('n'),
             kind,
             points: capped,
@@ -385,6 +409,9 @@
             persist: raw.persist === true,
             scope: 'page'
         };
+        const anchor = safeAnnotationAnchor(raw.anchor);
+        if (anchor) annotation.anchor = anchor;
+        return annotation;
     }
 
     let idCounter = 0;
@@ -406,12 +433,12 @@
             rules: s.rules.map(r => ({ ...r })),
             areas: s.areas.map(a => ({ ...a })),
             replacements: s.replacements.map(r => ({ ...r })),
-            // points is the only nested value in the model, so it needs its own copy or
-            // history snapshots would share the array with live state and undo would be
-            // unable to restore a moved annotation.
+            // Geometry and anchors need their own copies or history snapshots would share
+            // mutable annotation state and undo could not restore a move or reflow.
             annotations: (s.annotations || []).map(a => ({
                 ...a,
-                points: a.points.map(p => /** @type {Point} */ ([p[0], p[1]]))
+                points: a.points.map(p => /** @type {Point} */ ([p[0], p[1]])),
+                ...(a.anchor ? { anchor: { ...a.anchor } } : {})
             }))
         };
     }

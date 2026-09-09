@@ -234,7 +234,7 @@ await page.reload({ waitUntil: 'load' });
 await page.waitForTimeout(1200);
 check('session-only annotations are gone after reload', (await countNotes()) === 0);
 
-// ---------- Keep after reload ----------
+// ---------- Keep annotations after reload ----------
 check('re-activate annotate mode', (await activate('annotate')) === 'ok');
 await page.waitForTimeout(800);
 await page.evaluate(async () => {
@@ -243,16 +243,117 @@ await page.evaluate(async () => {
   document.querySelector('#ceb-btn-note-keep')?.click();
   await new Promise(r => setTimeout(r, 200));
 });
-await drawNote('ellipse', [200, 300], [330, 380]);
+const keepUi = await page.evaluate(() => ({
+  tag: document.getElementById('ceb-btn-note-keep')?.tagName,
+  type: document.getElementById('ceb-btn-note-keep')?.type,
+  checked: document.getElementById('ceb-btn-note-keep')?.checked,
+  label: document.querySelector('.ceb-note-keep .ceb-tb-toggle-label')?.textContent,
+  hint: document.getElementById('ceb-note-keep-hint')?.textContent,
+}));
+check('annotation persistence is an explicit checked setting',
+  keepUi.tag === 'INPUT' && keepUi.type === 'checkbox' && keepUi.checked
+    && keepUi.label === 'Keep annotations after reload' && /follows page elements/i.test(keepUi.hint),
+  JSON.stringify(keepUi));
+
+const targetBefore = await page.locator('#title').boundingBox();
+await drawNote('arrow',
+  [targetBefore.x + 360, targetBefore.y + 105],
+  [targetBefore.x + 110, targetBefore.y + targetBefore.height / 2]);
 await page.waitForTimeout(600);
 
 const keptStored = await readKey(pageKey);
 check('kept annotations are written to storage',
-  keptStored?.annotations?.length === 1, JSON.stringify(keptStored?.annotations?.map(a => a.kind) ?? []));
+  keptStored?.annotations?.length === 1
+    && keptStored.annotations[0].anchor?.selector === '#title',
+  JSON.stringify(keptStored?.annotations ?? []));
 
-await page.reload({ waitUntil: 'load' });
+const anchoredBefore = await page.evaluate(() => {
+  const target = document.getElementById('title').getBoundingClientRect();
+  const note = document.querySelector('.ceb-annotation').getBoundingClientRect();
+  return { targetTop: target.top, noteTop: note.top };
+});
+await page.addInitScript(() => {
+  if (!new URL(location.href).searchParams.has('anchorShift')) return;
+  const insertSpacer = () => {
+    const title = document.getElementById('title');
+    if (!title) return false;
+    const spacer = document.createElement('div');
+    spacer.id = 'ceb-anchor-test-spacer';
+    spacer.style.height = '120px';
+    document.body.insertBefore(spacer, title);
+    return true;
+  };
+  if (!insertSpacer()) {
+    const observer = new MutationObserver(() => {
+      if (insertSpacer()) observer.disconnect();
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  }
+});
+
+await page.goto(`${URL1}?anchorShift=1`, { waitUntil: 'load' });
 await page.waitForTimeout(1400);
 check('kept annotations survive a reload', (await countNotes()) === 1, `${await countNotes()} on page`);
+const anchoredAfter = await page.evaluate(() => {
+  const target = document.getElementById('title').getBoundingClientRect();
+  const note = document.querySelector('.ceb-annotation').getBoundingClientRect();
+  return { targetTop: target.top, noteTop: note.top };
+});
+const targetShift = anchoredAfter.targetTop - anchoredBefore.targetTop;
+const noteShift = anchoredAfter.noteTop - anchoredBefore.noteTop;
+check('a kept annotation follows its element after refresh',
+  Math.abs(targetShift - 120) < 2 && Math.abs(noteShift - targetShift) < 2,
+  JSON.stringify({ targetShift, noteShift }));
+
+const liveReflow = await page.evaluate(async () => {
+  const beforeTarget = document.getElementById('title').getBoundingClientRect().top;
+  const beforeNote = document.querySelector('.ceb-annotation').getBoundingClientRect().top;
+  const spacer = document.createElement('div');
+  spacer.id = 'ceb-live-reflow-spacer';
+  spacer.style.height = '64px';
+  document.body.insertBefore(spacer, document.getElementById('title'));
+  await new Promise(r => setTimeout(r, 700));
+  const afterTarget = document.getElementById('title').getBoundingClientRect().top;
+  const afterNote = document.querySelector('.ceb-annotation').getBoundingClientRect().top;
+  spacer.remove();
+  return { targetShift: afterTarget - beforeTarget, noteShift: afterNote - beforeNote };
+});
+check('a kept annotation follows live page reflow',
+  Math.abs(liveReflow.targetShift - 64) < 2
+    && Math.abs(liveReflow.noteShift - liveReflow.targetShift) < 2,
+  JSON.stringify(liveReflow));
+const targetResize = await page.evaluate(async () => {
+  const target = document.getElementById('title');
+  const beforeTarget = target.getBoundingClientRect();
+  const beforeAnchorX = Number(document.querySelector('.ceb-annotation').dataset.cebAnchorX);
+  target.style.width = `${beforeTarget.width / 2}px`;
+  await new Promise(r => setTimeout(r, 700));
+  const afterTarget = target.getBoundingClientRect();
+  const afterAnchorX = Number(document.querySelector('.ceb-annotation').dataset.cebAnchorX);
+  target.style.width = '';
+  return {
+    targetWidthChange: afterTarget.width - beforeTarget.width,
+    anchorPointShift: afterAnchorX - beforeAnchorX,
+  };
+});
+const expectedResizeShift = targetResize.targetWidthChange * keptStored.annotations[0].anchor.rx;
+check('a kept annotation follows its relative point when the element resizes',
+  Math.abs(targetResize.anchorPointShift - expectedResizeShift) < 2,
+  JSON.stringify({ ...targetResize, expectedResizeShift }));
+const collapsedTarget = await page.evaluate(async () => {
+  const target = document.getElementById('title');
+  const before = document.querySelector('.ceb-annotation').getBoundingClientRect();
+  target.style.display = 'none';
+  await new Promise(r => setTimeout(r, 700));
+  const after = document.querySelector('.ceb-annotation').getBoundingClientRect();
+  target.style.display = '';
+  return { left: after.left - before.left, top: after.top - before.top };
+});
+check('a collapsed anchor target leaves the annotation at its fallback coordinates',
+  Math.abs(collapsedTarget.left) < 1 && Math.abs(collapsedTarget.top) < 1,
+  JSON.stringify(collapsedTarget));
+await page.goto(URL1, { waitUntil: 'load' });
+await page.waitForTimeout(1200);
 
 // ---------- Import validation ----------
 // color and size reach SVG presentation attributes, so a crafted import must not
@@ -260,7 +361,8 @@ check('kept annotations survive a reload', (await countNotes()) === 1, `${await 
 const sanitized = await sw.evaluate(async ({ key }) => {
   const bad = {
     id: 'evil', kind: 'ellipse', points: [[10, 10], [80, 80]],
-    color: 'url(javascript:alert(1))', size: 99999, text: '', boxW: 200, persist: true, scope: 'page'
+    color: 'url(javascript:alert(1))', size: 99999, text: '', boxW: 200,
+    persist: true, scope: 'page', anchor: { selector: '#ceb-toolbar', x: 0, y: 0 }
   };
   const cur = (await chrome.storage.local.get([key]))[key] || {};
   await chrome.storage.local.set({
@@ -275,12 +377,19 @@ await page.reload({ waitUntil: 'load' });
 await page.waitForTimeout(1400);
 const rendered = await page.evaluate(() => {
   const el = document.querySelector('.ceb-annotation ellipse');
-  return el ? { stroke: el.getAttribute('stroke'), width: el.getAttribute('stroke-width') } : null;
+  const wrapper = el?.closest('.ceb-annotation');
+  return el ? {
+    stroke: el.getAttribute('stroke'),
+    width: el.getAttribute('stroke-width'),
+    left: wrapper.getBoundingClientRect().left,
+  } : null;
 });
 check('a crafted colour is replaced with a safe one',
   rendered !== null && /^#[0-9a-fA-F]{6}$/.test(rendered.stroke), JSON.stringify(rendered));
 check('an out-of-range size is clamped',
   rendered !== null && Number(rendered.width) <= 40, JSON.stringify(rendered));
+check('an imported anchor cannot target extension chrome',
+  rendered !== null && rendered.left < 100, JSON.stringify(rendered));
 
 // ---------- Screenshot hides the extension's own chrome ----------
 check('activate annotate for capture', (await activate('annotate')) === 'ok');
@@ -385,8 +494,13 @@ await page.evaluate(async () => {
 });
 await page.waitForTimeout(250);
 
-// Zig-zag across a band well clear of the toolbar, feeding far more samples than the cap.
-const BAND_TOP = 120, BAND_BOTTOM = 260, X0 = 60, X1 = 700;
+// Zig-zag across a band inside #card-1 and well clear of the toolbar, feeding far more
+// samples than the cap. Keeping the midpoint in the card's padding makes the underlying
+// picker target deterministic even when earlier tests changed page layout.
+const cardBox = await page.locator('#card-1').boundingBox();
+const BAND_TOP = Math.round(cardBox.y + cardBox.height - 15);
+const BAND_BOTTOM = Math.round(cardBox.y + cardBox.height - 5);
+const X0 = 60, X1 = 700;
 await page.mouse.move(X0, BAND_TOP);
 await page.mouse.down();
 for (let i = 1; i <= 900; i++) {

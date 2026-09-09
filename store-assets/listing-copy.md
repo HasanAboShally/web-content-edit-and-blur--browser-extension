@@ -23,7 +23,7 @@ WHAT YOU CAN DO
 - Blur or hide non-sensitive elements, or redact private ones
 - Draw blur areas for de-emphasis or solid blocks over private regions
 - Annotate with arrows, circles, boxes, highlighter, freehand pen, text notes and numbered steps
-- Move and resize annotations
+- Move and resize annotations, and optionally keep new marks anchored through page reflow
 - Use the smart picker to select parent or child elements precisely
 - Undo and redo changes
 - Save rules for one page or an entire site
@@ -36,11 +36,11 @@ Use it to prepare product mockups, communicate design changes, hide names or acc
 
 Blur is useful for visual de-emphasis. For sensitive screenshots, use Redact, which paints an opaque block over the rendered content.
 
-Essentials includes the everyday workflow, including Redo, boxes and freehand drawing. Advanced adds redaction, numbered Steps, site-wide scope, the rules panel and export/import. Everything is free, with no paid features or account; optional sponsorship unlocks nothing.
+Essentials includes the everyday workflow, including Redact, Redo, boxes and freehand drawing. Advanced adds numbered Steps, site-wide scope, the rules panel and export/import. Everything is free, with no paid features or account; optional sponsorship unlocks nothing.
 
 PRIVACY BY DESIGN
 
-The extension has no backend and does not collect data, use analytics or transmit page content. Remembered changes remain in local browser storage. The underlying website remains connected and may observe DOM changes, so use staging or trusted pages for mockups. Annotations are session-only by default unless you choose Save annotations too.
+The extension has no backend and does not collect data, use analytics or transmit page content. Remembered changes remain in local browser storage. The underlying website remains connected and may observe DOM changes, so use staging or trusted pages for mockups. Annotations are session-only by default unless you enable Keep annotations after reload.
 
 Open source:
 https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension
@@ -108,6 +108,9 @@ https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/
 
 ## Draft version 2.5.0 highlights
 
+- Optional element anchors keep saved annotations aligned through page reflow
+- Clearer Keep annotations after reload setting and safe persistence resume
+- Redact is now available in Essentials, with a reminder to use it for sensitive data
 - One-time, neutral request for an honest review after three successful screenshots
 - New practical guides for redaction, screen sharing, product mockups and bug reports
 - Corrected Edit-mode store preview plus new promotional tiles and captioned video source

@@ -173,8 +173,10 @@ real suite showed undo removing one mark *and simultaneously restoring another* 
 - **Empty text notes are dangerous.** A text note enters `state.annotations` the moment it
   is placed, before a character is typed. Any commit while an editor is open bakes an
   invisible empty note into the snapshot. Filtered in both `commit()` and `serializeScope()`.
-- **Annotations use raw document coordinates**, so page reflow shifts them.
-  Element-anchored offsets are a known unimplemented improvement.
+- **Kept annotations use optional element anchors plus raw fallback coordinates.**
+  `renderAnnotations()` translates anchored geometry before paint and observes resolved
+  targets for reflow. Old imports and marks without a stable target remain fixed to raw
+  document coordinates; never discard that fallback.
 - **Rendering order matters.** `renderAnnotation` appends to `document.body`, but
   `annotationAt` walks `state.annotations` in reverse to decide what is topmost. If a
   refresh re-appends, what is painted on top and what can be grabbed disagree.

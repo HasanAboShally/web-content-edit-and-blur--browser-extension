@@ -11,6 +11,159 @@
         return index === -1 ? steps.length + 1 : index + 1;
     }
 
+    let annotationAnchorObserver = null;
+    let annotationAnchorFrame = null;
+
+    function annotationAnchorPoint(a) {
+        if (a.kind === 'arrow') return a.points[a.points.length - 1];
+        if (ANCHORED_KINDS.includes(a.kind)) return a.points[0];
+        if (FREEHAND_KINDS.includes(a.kind)) return a.points[Math.floor(a.points.length / 2)];
+        const bounds = annotationBounds(a);
+        return [bounds.x + bounds.width / 2, bounds.y + bounds.height / 2];
+    }
+
+    function annotationPageElementAt(point) {
+        const x = point[0] - window.scrollX;
+        const y = point[1] - window.scrollY;
+        if (x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight) return null;
+        return document.elementsFromPoint(x, y).find(el => {
+            if (el === document.body || el === document.documentElement) return false;
+            if (isExtensionUi(el) || isOwnOverlay(el)) return false;
+            return !el.closest('#ceb-annotate-overlay, #ceb-note-preview, #ceb-note-handles');
+        }) || null;
+    }
+
+    function annotationAnchorFor(a) {
+        const point = annotationAnchorPoint(a);
+        const target = annotationPageElementAt(point);
+        const selector = getElementSelector(target);
+        try {
+            if (!selector || document.querySelectorAll(selector).length !== 1
+                || !selectorMatchesOnly(selector, target)) return null;
+        } catch (e) {
+            return null;
+        }
+        const rect = target.getBoundingClientRect();
+        const x = rect.left + window.scrollX;
+        const y = rect.top + window.scrollY;
+        const rx = rect.width ? Math.max(0, Math.min(1, (point[0] - x) / rect.width)) : 0;
+        const ry = rect.height ? Math.max(0, Math.min(1, (point[1] - y) / rect.height)) : 0;
+        return {
+            selector,
+            x: x + rx * rect.width,
+            y: y + ry * rect.height,
+            rx,
+            ry
+        };
+    }
+
+    function reanchorAnnotation(a) {
+        if (!a.persist) return;
+        const anchor = annotationAnchorFor(a);
+        if (anchor) a.anchor = anchor;
+        else delete a.anchor;
+    }
+
+    function annotationAnchorElement(anchor) {
+        let target;
+        try {
+            const matches = document.querySelectorAll(anchor.selector);
+            if (matches.length !== 1) return null;
+            target = matches[0];
+        } catch (e) {
+            return null;
+        }
+        if (!target || !target.isConnected || target === document.body
+            || target === document.documentElement || isExtensionUi(target)
+            || isOwnOverlay(target)
+            || target.closest('#ceb-annotate-overlay, #ceb-note-preview, #ceb-note-handles')) {
+            return null;
+        }
+        return target;
+    }
+
+    function syncAnnotationAnchors() {
+        if (typeof noteDrag !== 'undefined' && (noteDrag || noteDrawing)) return false;
+        let changed = false;
+        state.annotations.forEach(a => {
+            if (!a.persist || !a.anchor) return;
+            const target = annotationAnchorElement(a.anchor);
+            if (!target) return;
+            const rect = target.getBoundingClientRect();
+            if (!rect.width && !rect.height) return;
+            const x = rect.left + window.scrollX + (a.anchor.rx ?? 0) * rect.width;
+            const y = rect.top + window.scrollY + (a.anchor.ry ?? 0) * rect.height;
+            const dx = x - a.anchor.x;
+            const dy = y - a.anchor.y;
+            if (Math.abs(dx) < 0.1 && Math.abs(dy) < 0.1) return;
+            a.points = a.points.map(p => [p[0] + dx, p[1] + dy]);
+            a.anchor.x = x;
+            a.anchor.y = y;
+            changed = true;
+        });
+        return changed;
+    }
+
+    function renderAnnotations() {
+        syncAnnotationAnchors();
+        clearRenderedAnnotations();
+        const editingId = typeof textEditor !== 'undefined' && textEditor
+            ? textEditor.dataset.cebNoteId : null;
+        state.annotations.forEach(a => {
+            const el = renderAnnotation(a);
+            if (editingId === a.id) el.style.visibility = 'hidden';
+        });
+        syncAnnotationSelection();
+        observeAnnotationAnchorTargets();
+    }
+
+    function syncRenderedAnnotationAnchors() {
+        if (!syncAnnotationAnchors()) return;
+        renderAnnotations();
+        if (typeof textEditor !== 'undefined' && textEditor) {
+            const note = state.annotations.find(a => a.id === textEditor.dataset.cebNoteId);
+            if (note) {
+                textEditor.style.left = `${note.points[0][0]}px`;
+                textEditor.style.top = `${note.points[0][1]}px`;
+            }
+        }
+    }
+
+    function scheduleAnnotationAnchorSync() {
+        if (annotationAnchorFrame !== null || !state.annotations.some(a => a.anchor)) return;
+        annotationAnchorFrame = requestAnimationFrame(() => {
+            annotationAnchorFrame = null;
+            syncRenderedAnnotationAnchors();
+        });
+    }
+
+    function observeAnnotationAnchorTargets() {
+        if (!annotationAnchorObserver) return;
+        annotationAnchorObserver.disconnect();
+        annotationAnchorObserver.observe(document.documentElement);
+        const seen = new Set();
+        state.annotations.forEach(a => {
+            if (!a.anchor) return;
+            const target = annotationAnchorElement(a.anchor);
+            if (target && !seen.has(target)) {
+                seen.add(target);
+                annotationAnchorObserver.observe(target);
+            }
+        });
+    }
+
+    function startAnnotationAnchorObserver() {
+        if (!isTopFrame || typeof ResizeObserver !== 'function') return () => {};
+        annotationAnchorObserver = new ResizeObserver(scheduleAnnotationAnchorSync);
+        observeAnnotationAnchorTargets();
+        return () => {
+            annotationAnchorObserver?.disconnect();
+            annotationAnchorObserver = null;
+            if (annotationAnchorFrame !== null) cancelAnimationFrame(annotationAnchorFrame);
+            annotationAnchorFrame = null;
+        };
+    }
+
     function buildAnnotationShape(a, bounds) {
         const svg = document.createElementNS(SVG_NS, 'svg');
         svg.setAttribute('width', String(bounds.width));
@@ -112,6 +265,9 @@
         el.className = 'ceb-annotation';
         el.dataset.cebNoteId = a.id;
         el.dataset.cebNoteKind = a.kind;
+        const anchorPoint = annotationAnchorPoint(a);
+        el.dataset.cebAnchorX = String(anchorPoint[0]);
+        el.dataset.cebAnchorY = String(anchorPoint[1]);
 
         // Annotations are never hit-testable. They sit above the page, so leaving them
         // clickable meant a mark laid over a link swallowed the click — and, because the

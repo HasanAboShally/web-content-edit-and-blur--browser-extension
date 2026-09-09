@@ -517,6 +517,22 @@ check('review request stays neutral and one-time', () => {
   return 'third successful screenshot, honest copy and No thanks';
 });
 
+check('privacy and annotation persistence controls stay explicit', () => {
+  const template = fs.readFileSync(path.join(root, 'page/toolbar-template.js'), 'utf8');
+  const redactButton = template.match(/<button class="([^"]*)" data-mode="redact"/);
+  if (!redactButton || redactButton[1].includes('ceb-advanced-only')) {
+    throw new Error('Redact must remain visible in Essentials');
+  }
+  if (!template.includes('Sensitive data? Use Redact, not Blur.')) {
+    throw new Error('Blur is missing its sensitive-data safety guidance');
+  }
+  if (!/<input type="checkbox" id="ceb-btn-note-keep"/.test(template)
+      || !template.includes('Keep annotations after reload')) {
+    throw new Error('annotation persistence must be an explicit labeled checkbox');
+  }
+  return 'Redact in Essentials; annotation persistence is a checkbox';
+});
+
 check('release-facing copy matches the manifest version', () => {
   const listing = fs.readFileSync(path.join(root, 'store-assets/listing-copy.md'), 'utf8');
   const website = fs.readFileSync(path.join(root, 'docs/index.html'), 'utf8');
@@ -593,8 +609,25 @@ check('restoreFromStorage merges instead of overwriting state', () => {
   if (/\bstate\s*=\s*\{/.test(body)) {
     throw new Error('assigns to state — a racing context-menu action would be lost');
   }
-  if (!/mergeInto\(state/.test(body)) throw new Error('does not call mergeInto(state, ...)');
+  const helperStart = src.indexOf('function adoptSavedScopes');
+  const helperBody = helperStart === -1 ? '' : src.slice(helperStart, helperStart + 1600);
+  if (!/mergeInto\(state/.test(body)
+      && (!/adoptSavedScopes\(/.test(body) || !/mergeInto\(state/.test(helperBody))) {
+    throw new Error('does not merge restored scopes into state');
+  }
   return 'merges';
+});
+
+check('resuming persistence restores before saving', () => {
+  const start = pageSource.indexOf('async function resumePersistence');
+  if (start === -1) throw new Error('resumePersistence not found');
+  const body = pageSource.slice(start, start + 1800);
+  const restoreAt = body.indexOf('adoptSavedScopes(pageData, siteData)');
+  const saveAt = body.indexOf('saveChanges()');
+  if (restoreAt === -1 || saveAt === -1 || saveAt < restoreAt) {
+    throw new Error('saved scopes are not adopted before current state is written');
+  }
+  return 'merge then save';
 });
 
 check('flushChanges omits an unloaded site scope', () => {

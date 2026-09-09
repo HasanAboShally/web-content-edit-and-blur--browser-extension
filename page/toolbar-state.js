@@ -98,9 +98,15 @@
         const keepBtn = toolbar.querySelector('#ceb-btn-note-keep');
         if (keepBtn) {
             const remembered = settings.persistEnabled && settings.annotateKeep;
-            keepBtn.classList.toggle('active', remembered);
-            keepBtn.setAttribute('aria-pressed', String(remembered));
-            keepBtn.textContent = remembered ? 'Annotations remembered' : 'Save annotations too';
+            keepBtn.checked = settings.annotateKeep;
+            const hint = toolbar.querySelector('#ceb-note-keep-hint');
+            if (hint) {
+                hint.textContent = remembered
+                    ? 'Kept on this page · follows page elements when possible'
+                    : settings.annotateKeep
+                        ? 'Paused until Remember changes is on'
+                        : 'Off by default · follows page elements when possible';
+            }
         }
         toolbar.querySelectorAll('#ceb-ui-seg .ceb-seg-btn').forEach(btn => {
             const active = btn.dataset.ui === settings.uiMode;

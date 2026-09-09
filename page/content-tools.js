@@ -27,12 +27,13 @@
         }));
     }
 
-    function downloadScreenshot(dataUrl) {
+    function downloadScreenshot(dataUrl, offerReview = false) {
         const link = document.createElement('a');
         link.download = `screenshot-${Date.now()}.png`;
         link.href = dataUrl;
         link.click();
         showToast('Screenshot saved!');
+        if (offerReview) showReviewPrompt();
     }
 
     // The toolbar already communicates the current mode. A compact badge is only useful

@@ -554,6 +554,55 @@
 }
 #ceb-toolbar .ceb-tb-help:hover { background: var(--ceb-surface-subtle); border-color: var(--ceb-border-strong); color: var(--ceb-text); }
 
+#ceb-toolbar .ceb-review-prompt {
+    flex: none;
+    padding: 12px;
+    border-top: 1px solid #c8d6f4;
+    background: var(--ceb-accent-soft);
+}
+#ceb-toolbar .ceb-review-copy {
+    display: grid;
+    gap: 3px;
+}
+#ceb-toolbar .ceb-review-copy strong {
+    color: #172f68;
+    font-size: 12px;
+    font-weight: 700;
+}
+#ceb-toolbar .ceb-review-copy span {
+    color: #425a8a;
+    font-size: 11px;
+    line-height: 1.4;
+}
+#ceb-toolbar .ceb-review-actions {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 7px;
+}
+#ceb-toolbar .ceb-review-primary,
+#ceb-toolbar .ceb-review-dismiss {
+    min-height: 34px;
+    padding: 7px 10px;
+    border-radius: var(--ceb-radius-sm);
+    font: 650 11px/1.2 var(--ceb-font);
+    cursor: pointer;
+}
+#ceb-toolbar .ceb-review-primary {
+    border: 1px solid var(--ceb-accent-hover);
+    background: var(--ceb-accent);
+    color: #ffffff;
+}
+#ceb-toolbar .ceb-review-primary:hover { background: var(--ceb-accent-hover); }
+#ceb-toolbar .ceb-review-dismiss {
+    border: 1px solid #b8cdfb;
+    background: var(--ceb-surface);
+    color: #234eac;
+}
+#ceb-toolbar .ceb-review-dismiss:hover { border-color: var(--ceb-accent); }
+#ceb-toolbar .ceb-review-primary:active,
+#ceb-toolbar .ceb-review-dismiss:active { transform: translateY(1px); }
+
 #ceb-toolbar .ceb-toolbar-footer {
     flex: none;
     min-height: 44px;

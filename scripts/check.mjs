@@ -51,6 +51,12 @@ const STORE_SCREENSHOTS = [
   '04-annotate-and-highlight.png',
   '05-rules-and-site-scope.png',
 ];
+const STORE_PROMOS = [
+  ['store-assets/promo/small-promo-tile.png', 440, 280],
+  ['store-assets/promo/marquee-promo-tile.png', 1400, 560],
+  ['store-assets/launch/assets/product-hunt-thumbnail.png', 240, 240],
+  ['store-assets/launch/assets/social-profile.png', 400, 400],
+];
 
 function pngDimensions(file) {
   const bytes = fs.readFileSync(path.join(root, file));
@@ -420,7 +426,23 @@ check('release media has store-safe dimensions', () => {
   if (ogWidth !== 1200 || ogHeight !== 630) {
     throw new Error(`docs/og-image.png is ${ogWidth}×${ogHeight}, expected 1200×630`);
   }
-  return `${STORE_SCREENSHOTS.length} store images plus social card`;
+  for (const [file, expectedWidth, expectedHeight] of STORE_PROMOS) {
+    const [width, height] = pngDimensions(file);
+    if (width !== expectedWidth || height !== expectedHeight) {
+      throw new Error(`${file} is ${width}×${height}, expected ${expectedWidth}×${expectedHeight}`);
+    }
+  }
+  const videoFile = 'store-assets/video/content-edit-blur-demo.mp4';
+  const video = fs.readFileSync(path.join(root, videoFile));
+  if (video.length < 100_000 || video.subarray(4, 8).toString('ascii') !== 'ftyp') {
+    throw new Error(`${videoFile} is missing or not a usable MP4`);
+  }
+  for (const file of [...STORE_PROMOS.map(([name]) => name), videoFile]) {
+    if (!listing.includes(file.replace('store-assets/', ''))) {
+      throw new Error(`${file} is not documented in store listing copy`);
+    }
+  }
+  return `${STORE_SCREENSHOTS.length} screenshots, ${STORE_PROMOS.length} promo assets, video and social card`;
 });
 
 check('manifest description matches shared store copy', () => {
@@ -434,14 +456,76 @@ check('manifest description matches shared store copy', () => {
   return `${summary.length}/132 characters`;
 });
 
+check('growth surfaces stay factual and complete', () => {
+  const listing = fs.readFileSync(path.join(root, 'store-assets/listing-copy.md'), 'utf8');
+  const launch = fs.readFileSync(path.join(root, 'store-assets/launch/social-posts.md'), 'utf8');
+  const website = fs.readFileSync(path.join(root, 'docs/index.html'), 'utf8');
+  const sitemap = fs.readFileSync(path.join(root, 'docs/sitemap.xml'), 'utf8');
+  const llms = fs.readFileSync(path.join(root, 'docs/llms.txt'), 'utf8');
+  const markdown = fs.readFileSync(path.join(root, 'docs/index.md'), 'utf8');
+  const baseline = JSON.parse(fs.readFileSync(path.join(root, 'store-assets/growth-baseline.json'), 'utf8'));
+  const guides = [
+    'guides/redact-sensitive-information.html',
+    'guides/blur-webpage-before-screen-sharing.html',
+    'guides/edit-webpage-text-for-mockups.html',
+    'guides/annotate-webpage-for-bug-report.html',
+  ];
+  for (const guide of guides) {
+    const markdownGuide = guide.replace(/\.html$/, '.md');
+    if (!fs.existsSync(path.join(root, 'docs', guide))
+        || !fs.existsSync(path.join(root, 'docs', markdownGuide))
+        || !sitemap.includes(guide) || !llms.includes(markdownGuide) || !markdown.includes(guide)) {
+      throw new Error(`${guide} is missing from a growth discovery surface`);
+    }
+  }
+  if (!listing.includes('Draft version 2.5.0 highlights')
+      || !listing.includes('no paid features or account')) {
+    throw new Error('store copy does not distinguish draft release status or free access');
+  }
+  const blueskyPosts = [...launch.matchAll(/^## Bluesky:[^\n]*\n\n([\s\S]*?)(?=\n## |$)/gm)];
+  if (!blueskyPosts.length || blueskyPosts.some(match => match[1].trim().length > 300)) {
+    throw new Error('every Bluesky draft must fit 300 characters');
+  }
+  if (baseline.checkedAt !== '2026-09-09'
+      || baseline.stores?.chrome?.users !== 6000
+      || baseline.stores?.chrome?.rating !== 4.5
+      || baseline.stores?.chrome?.ratingCount !== 20
+      || baseline.stores?.firefox?.averageDailyUsers !== 86
+      || baseline.stores?.edge?.users !== 3712) {
+    throw new Error('growth baseline is missing the verified dated store snapshot');
+  }
+  const chromeUsers = baseline.stores.chrome.users.toLocaleString('en-US');
+  if (!website.includes(`<strong>${chromeUsers}</strong> Chrome users`)
+      || !website.includes(`<strong>${baseline.stores.chrome.rating} / 5</strong> from ${baseline.stores.chrome.ratingCount} Chrome ratings`)
+      || website.includes('Across Chrome, Firefox and Edge:')) {
+    throw new Error('homepage social proof must use the source-qualified Chrome population');
+  }
+  return `${guides.length} guides, ${blueskyPosts.length} Bluesky drafts and dated baseline`;
+});
+
+check('review request stays neutral and one-time', () => {
+  const background = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
+  const template = fs.readFileSync(path.join(root, 'page/toolbar-template.js'), 'utf8');
+  if (!background.includes('REVIEW_PROMPT_AFTER_SCREENSHOTS = 3')
+      || !template.includes('An honest store review helps other people find it.')
+      || !template.includes('No thanks')) {
+    throw new Error('review request threshold, neutral copy or permanent dismissal is missing');
+  }
+  if (/five[- ]star|5[- ]star/i.test(`${background}\n${template}`)) {
+    throw new Error('review request must never ask for a particular rating');
+  }
+  return 'third successful screenshot, honest copy and No thanks';
+});
+
 check('release-facing copy matches the manifest version', () => {
   const listing = fs.readFileSync(path.join(root, 'store-assets/listing-copy.md'), 'utf8');
   const website = fs.readFileSync(path.join(root, 'docs/index.html'), 'utf8');
-  if (!listing.includes(`## Version ${manifest.version} highlights`)) {
+  if (!listing.includes(`## Version ${manifest.version} highlights`)
+      && !listing.includes(`## Draft version ${manifest.version} highlights`)) {
     throw new Error(`store listing has no ${manifest.version} highlights section`);
   }
-  if (!website.includes(`releases/tag/v${manifest.version}`)
-      || !website.includes(`<b>v${manifest.version}</b>`)
+  if (!website.includes('blob/master/CHANGELOG.md')
+      || !website.includes(`v${manifest.version}</b>`)
       || !website.includes(`og-image.png?v=${manifest.version}`)) {
     throw new Error(`website release announcement or social image is not ${manifest.version}`);
   }

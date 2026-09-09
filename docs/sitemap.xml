@@ -3,4 +3,16 @@
   <url>
     <loc>https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/</loc>
   </url>
+  <url>
+    <loc>https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/redact-sensitive-information.html</loc>
+  </url>
+  <url>
+    <loc>https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/blur-webpage-before-screen-sharing.html</loc>
+  </url>
+  <url>
+    <loc>https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/edit-webpage-text-for-mockups.html</loc>
+  </url>
+  <url>
+    <loc>https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/annotate-webpage-for-bug-report.html</loc>
+  </url>
 </urlset>

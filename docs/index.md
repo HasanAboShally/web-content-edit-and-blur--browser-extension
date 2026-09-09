@@ -1,6 +1,6 @@
 # Content Edit & Blur
 
-> A free, open-source browser extension to edit text and images, blur or redact sensitive information, annotate webpages, and capture clean screenshots.
+> A free, open-source browser extension to edit text and images, redact sensitive information, de-emphasize non-sensitive content, annotate webpages, and capture clean screenshots.
 
 Canonical website: https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/
 
@@ -10,7 +10,7 @@ Content Edit & Blur runs locally in Google Chrome, Mozilla Firefox, and Microsof
 
 - Edit webpage text directly and replace every matching occurrence.
 - Replace webpage images with local files.
-- Blur or hide page elements and precise rectangular areas.
+- Blur or hide page elements, and blur or redact precise rectangular areas.
 - Redact sensitive rendered content with an opaque block.
 - Annotate pages with arrows, circles, boxes, highlighter, freehand pen, text notes, and numbered steps.
 - Undo and redo changes.
@@ -26,7 +26,7 @@ Redact is for sensitive screenshots. It replaces the rendered content with an op
 
 ## Privacy
 
-The extension has no account, analytics, telemetry, or external requests. Page content is not uploaded. Remembered changes stay in `chrome.storage.local` on the user's device and are never synced by the extension.
+The extension has no account, analytics, telemetry, backend or external requests and does not transmit page content. Remembered changes stay in `chrome.storage.local` and are never synced by the extension. The underlying website remains connected and its scripts may observe or transmit DOM changes.
 
 A small content script runs at page start only to remember the last element that was right-clicked. The full editing engine loads on demand or when locally saved rules need to be restored.
 
@@ -34,7 +34,7 @@ A small content script runs at page start only to remember the last element that
 
 1. Install the extension from an official browser store.
 2. Open the floating toolbar from the extension icon.
-3. Choose Edit, Blur, Hide, Redact, Annotate, or an Area target.
+3. Choose Edit, Blur, Hide, Redact or Annotate. Blur and Redact also support an Area target.
 4. Hover to confirm the target, then click or drag to apply the change.
 5. Capture a screenshot; the extension controls hide themselves first.
 
@@ -46,11 +46,18 @@ A small content script runs at page start only to remember the last element that
 
 All features are free. The [source code](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension) is public under the [MIT license](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/LICENSE).
 
-## Current release
+## Releases
 
-Version 2.4.0 was released in September 2026. It introduced clearer Content and Privacy groups, direct Soft and Strong blur controls, contextual editing for privacy effects and annotations, Essentials and Advanced toolbar views, and stronger persistence reliability.
+Version 2.4.0 is the current store release. It introduced clearer Content and Privacy groups, direct Soft and Strong blur controls, contextual editing and stronger persistence reliability.
 
-See the [v2.4.0 release](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/releases/tag/v2.4.0) and [full changelog](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/CHANGELOG.md).
+Version 2.5.0 is in preparation. It adds a one-time neutral request for an honest store review after three successful screenshots, plus practical guides and updated store media. See the [full changelog](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/CHANGELOG.md).
+
+## Practical guides
+
+- [How to redact sensitive information before taking a screenshot](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/redact-sensitive-information.html)
+- [How to blur a webpage before screen sharing](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/blur-webpage-before-screen-sharing.html)
+- [How to edit webpage text for realistic product mockups](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/edit-webpage-text-for-mockups.html)
+- [How to annotate a webpage for a useful bug report](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/annotate-webpage-for-bug-report.html)
 
 ## Adoption and reviews
 
@@ -60,7 +67,7 @@ Public store figures checked on September 9, 2026:
 - Firefox Add-ons: 86 average daily users and 4.0 out of 5 from 4 ratings.
 - Microsoft Edge Add-ons: 3,712 users and 5.0 out of 5 from 4 ratings.
 
-That is more than 9,700 users across the three browser listings and a weighted average of 4.5 out of 5 from 28 ratings. Counts and ratings change over time; use the official store links above for current values.
+These store figures are not one deduplicated user population: Firefox reports average daily users, while Chrome and Edge display store users, and the same person may use more than one browser. Counts and ratings change over time; use the official store links above for current values.
 
 ## Maintainer and support
 

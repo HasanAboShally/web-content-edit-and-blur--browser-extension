@@ -9,6 +9,15 @@ const docs = path.join(root, 'docs');
 const images = path.join(root, 'images');
 const canonical = 'https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/';
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+// Source may be preparing the next release while the website still links to the
+// currently installable store version. Advance this only after all stores publish.
+const storeVersion = '2.4.0';
+const guides = [
+  'guides/redact-sensitive-information.html',
+  'guides/blur-webpage-before-screen-sharing.html',
+  'guides/edit-webpage-text-for-mockups.html',
+  'guides/annotate-webpage-for-bug-report.html',
+];
 
 function within(directory, relativePath) {
   const candidate = path.resolve(directory, relativePath);
@@ -31,11 +40,14 @@ const server = http.createServer((request, response) => {
   }
   const type = file.endsWith('.html') ? 'text/html; charset=utf-8'
     : file.endsWith('.png') ? 'image/png'
-      : file.endsWith('.woff2') ? 'font/woff2'
-        : file.endsWith('.xml') ? 'application/xml; charset=utf-8'
-          : file.endsWith('.md') ? 'text/markdown; charset=utf-8'
-            : file.endsWith('.txt') ? 'text/plain; charset=utf-8'
-              : 'application/octet-stream';
+      : file.endsWith('.jpg') || file.endsWith('.jpeg') ? 'image/jpeg'
+      : file.endsWith('.webp') ? 'image/webp'
+        : file.endsWith('.css') ? 'text/css; charset=utf-8'
+          : file.endsWith('.woff2') ? 'font/woff2'
+            : file.endsWith('.xml') ? 'application/xml; charset=utf-8'
+              : file.endsWith('.md') ? 'text/markdown; charset=utf-8'
+                : file.endsWith('.txt') ? 'text/plain; charset=utf-8'
+                  : 'application/octet-stream';
   response.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-store' });
   fs.createReadStream(file).pipe(response);
 });
@@ -71,7 +83,7 @@ try {
       .map(link => link.getAttribute('href').slice(1))
       .filter(id => id && !document.getElementById(id)),
   }));
-  if (metadata.title !== 'Edit, Blur & Redact Any Webpage | Content Edit & Blur') {
+  if (metadata.title !== 'Edit, Blur & Redact Webpages | Content Edit & Blur') {
     throw new Error(`Website title is stale: ${metadata.title}`);
   }
   if (!metadata.description || metadata.description.length < 140 || metadata.description.length > 160) {
@@ -84,7 +96,7 @@ try {
       || metadata.sitemap !== `${canonical}sitemap.xml`) {
     throw new Error(`Machine-readable discovery links are stale: ${JSON.stringify(metadata)}`);
   }
-  if (!metadata.ogImage?.includes('/og-image.png?v=2.4.0')
+  if (!metadata.ogImage?.includes(`/og-image.png?v=${manifest.version}`)
       || metadata.ogWidth !== '1200' || metadata.ogHeight !== '630') {
     throw new Error(`Social metadata is stale: ${JSON.stringify(metadata)}`);
   }
@@ -107,7 +119,7 @@ try {
   if (!app || !website || !webpage || !author) throw new Error('Structured product identity is incomplete');
   if (app.name !== 'Content Edit & Blur'
       || app.applicationCategory !== 'BrowserApplication'
-      || app.softwareVersion !== manifest.version
+      || app.softwareVersion !== storeVersion
       || Number(app.offers?.price) !== 0
       || app.installUrl?.length !== 3) {
     throw new Error(`SoftwareApplication data is stale: ${JSON.stringify(app)}`);
@@ -135,10 +147,85 @@ try {
   if (!sitemap.includes(`<loc>${canonical}</loc>`)
       || !llms.startsWith('# Content Edit & Blur')
       || !llms.includes(`${canonical}index.md`)
-      || !markdown.includes('more than 9,700 users')
+      || !markdown.includes('Chrome Web Store: 6,000 users')
+      || !markdown.includes('not one deduplicated user population')
       || !markdown.includes(`Canonical website: ${canonical}`)) {
     throw new Error('Sitemap or LLM-readable product facts are incomplete');
   }
+  for (const guide of guides) {
+    const markdownGuide = guide.replace(/\.html$/, '.md');
+    if (!sitemap.includes(`<loc>${canonical}${guide}</loc>`)
+        || !llms.includes(`${canonical}${markdownGuide}`)
+        || !markdown.includes(`${canonical}${guide}`)) {
+      throw new Error(`Guide discovery is incomplete: ${guide}`);
+    }
+  }
+
+  for (const guide of guides) {
+    await page.setViewportSize({ width: 375, height: 800 });
+    const response = await page.goto(`${localOrigin}/${guide}`, { waitUntil: 'load' });
+    if (!response?.ok()) throw new Error(`${guide} returned ${response?.status()}`);
+    await page.evaluate(async () => {
+      const images = [...document.images];
+      images.forEach(image => image.loading = 'eager');
+      await Promise.all(images.map(image => image.decode()));
+    });
+    const guideMeta = await page.evaluate(() => {
+      const schema = [...document.querySelectorAll('script[type="application/ld+json"]')]
+        .flatMap(script => {
+          const value = JSON.parse(script.textContent);
+          return value['@graph'] || [value];
+        });
+      return {
+        title: document.title,
+        description: document.querySelector('meta[name="description"]')?.content,
+        canonical: document.querySelector('link[rel="canonical"]')?.href,
+        markdown: document.querySelector('link[rel="alternate"][type="text/markdown"]')?.href,
+        h1Count: document.querySelectorAll('h1').length,
+        mainCount: document.querySelectorAll('main').length,
+        article: schema.find(item => item['@type'] === 'TechArticle'),
+        images: [...document.images].map(image => ({
+          alt: image.getAttribute('alt'),
+          width: image.getAttribute('width'),
+          height: image.getAttribute('height'),
+          complete: image.complete,
+          naturalWidth: image.naturalWidth,
+        })),
+        brokenFragments: [...document.querySelectorAll('a[href^="#"]')]
+          .map(link => link.getAttribute('href').slice(1))
+          .filter(id => id && !document.getElementById(id)),
+      };
+    });
+    if (!guideMeta.title || guideMeta.title.length > 60
+        || !guideMeta.description || guideMeta.description.length < 120 || guideMeta.description.length > 160
+        || guideMeta.canonical !== `${canonical}${guide}`
+        || guideMeta.markdown !== `${canonical}${guide.replace(/\.html$/, '.md')}`
+        || guideMeta.h1Count !== 1 || guideMeta.mainCount !== 1
+        || !guideMeta.article || guideMeta.article.mainEntityOfPage !== `${canonical}${guide}`
+        || guideMeta.images.some(image => image.alt === null || !image.width || !image.height
+          || !image.complete || !image.naturalWidth)
+        || guideMeta.brokenFragments.length) {
+      throw new Error(`Guide metadata is incomplete: ${guide} ${JSON.stringify(guideMeta)}`);
+    }
+    const guideReflow = await page.evaluate(() => ({
+      client: document.documentElement.clientWidth,
+      scroll: document.documentElement.scrollWidth,
+    }));
+    if (guideReflow.scroll > guideReflow.client + 1) {
+      throw new Error(`${guide} overflows at 375px: ${JSON.stringify(guideReflow)}`);
+    }
+    const markdownResponse = await fetch(`${localOrigin}/${guide.replace(/\.html$/, '.md')}`);
+    const markdownGuide = await markdownResponse.text();
+    if (markdownResponse.status !== 200
+        || !markdownResponse.headers.get('content-type')?.startsWith('text/markdown')
+        || !markdownGuide.startsWith('# ')
+        || !markdownGuide.includes(`Canonical guide: ${canonical}${guide}`)) {
+      throw new Error(`Markdown alternate is incomplete: ${guide}`);
+    }
+  }
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${localOrigin}/`, { waitUntil: 'load' });
 
   await page.click('#theme-btn');
   const theme = await page.evaluate(() => ({

@@ -50,7 +50,7 @@
             const target = contextMenuTarget();
             if (target) applyKindToElement(target, 'redact');
         } else if (message.action === 'downloadScreenshot') {
-            downloadScreenshot(message.dataUrl);
+            downloadScreenshot(message.dataUrl, message.offerReview === true);
         } else if (message.action === 'importRules') {
             importRules(message.data);
         } else if (message.action === 'exportRules') {

@@ -8,6 +8,48 @@ const MODES = [
   { id: "draw", displayName: "Area", badgeColor: "#9C27B0" },
   { id: "annotate", displayName: "Note", badgeColor: "#E11D48" },
 ];
+const REVIEW_PROMPT_KEY = "reviewPrompt";
+const REVIEW_PROMPT_AFTER_SCREENSHOTS = 3;
+
+function reviewUrlForUserAgent(userAgent = navigator.userAgent) {
+  if (/Firefox\//.test(userAgent)) {
+    return "https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur/reviews/";
+  }
+  if (/Edg\//.test(userAgent)) {
+    return "https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl";
+  }
+  return "https://chromewebstore.google.com/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh/reviews";
+}
+
+function safeReviewPromptState(value) {
+  return {
+    successfulScreenshots: Math.max(0, Number(value?.successfulScreenshots) || 0),
+    prompted: value?.prompted === true,
+    dismissed: value?.dismissed === true,
+    reviewed: value?.reviewed === true,
+  };
+}
+
+async function recordSuccessfulScreenshot() {
+  const result = await chrome.storage.local.get([REVIEW_PROMPT_KEY]);
+  const state = safeReviewPromptState(result[REVIEW_PROMPT_KEY]);
+  if (state.prompted || state.dismissed) return false;
+
+  state.successfulScreenshots++;
+  const shouldPrompt = state.successfulScreenshots >= REVIEW_PROMPT_AFTER_SCREENSHOTS;
+  if (shouldPrompt) state.prompted = true;
+  await chrome.storage.local.set({ [REVIEW_PROMPT_KEY]: state });
+  return shouldPrompt;
+}
+
+async function dismissReviewPrompt(reviewed = false) {
+  const result = await chrome.storage.local.get([REVIEW_PROMPT_KEY]);
+  const state = safeReviewPromptState(result[REVIEW_PROMPT_KEY]);
+  state.prompted = true;
+  state.dismissed = true;
+  state.reviewed = reviewed;
+  await chrome.storage.local.set({ [REVIEW_PROMPT_KEY]: state });
+}
 
 // Runtime CSS and classic scripts are injected in their manifests' exact order.
 // The scripts share one isolated-world lexical scope; page/main.js must be last
@@ -442,12 +484,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       // Take screenshot of visible area
       try {
         const dataUrl = await chrome.tabs.captureVisibleTab(null, { format: 'png' });
+        const offerReview = await recordSuccessfulScreenshot();
         // Send to content script to trigger download - use sender.tab if no tabId provided
         const tabId = message.tabId || sender.tab?.id;
         if (tabId) {
           await chrome.tabs.sendMessage(tabId, {
-            action: "downloadScreenshot", 
-            dataUrl: dataUrl 
+            action: "downloadScreenshot",
+            dataUrl: dataUrl,
+            offerReview,
           }, { frameId: sender.frameId ?? 0 });
         }
         sendResponse({ success: true });
@@ -455,6 +499,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.error("[CEB] Screenshot error:", error);
         sendResponse({ success: false, error: error.message });
       }
+    } else if (message.action === "openReviewPage") {
+      const url = reviewUrlForUserAgent();
+      await chrome.tabs.create({ url });
+      await dismissReviewPrompt(true);
+      sendResponse({ success: true, url });
+    } else if (message.action === "dismissReviewPrompt") {
+      await dismissReviewPrompt(false);
+      sendResponse({ success: true });
     } else if (message === "idle" && sender.tab) {
       // Legacy support for ESC key
       tabStates[sender.tab.id] = tabStates[sender.tab.id] || {};

@@ -3,6 +3,27 @@
 All notable changes to this project are documented here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [2.5.0]
+
+### Added
+
+- A one-time, non-modal request for an honest store review after the third
+  successful screenshot. Dismissing it is permanent, the choice stays local, and
+  there is no sentiment gating or request for a particular rating.
+- Practical website guides for privacy-safe screenshots, screen sharing, product
+  mockups and visual bug reports, with crawlable and LLM-readable discovery files.
+- Reproducible 440×280 and 1400×560 promotional tiles, a captioned demo video
+  source and launch materials for independent product coverage.
+
+### Changed
+
+- Refocused store summary copy on the jobs people search for: webpage mockups,
+  visual bug reports, sensitive-data redaction and clean screenshots.
+- Corrected the first store screenshot so Edit mode is visibly active while the
+  page copy is being changed.
+- Expanded website validation to guard guide metadata, structured data, image
+  loading, internal links, sitemap coverage and mobile reflow.
+
 ## [2.4.0]
 
 ### Added

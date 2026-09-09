@@ -1,0 +1,54 @@
+{
+  "checkedAt": "2026-09-09",
+  "notes": [
+    "Logged-out English store search results; rankings can vary by market, account and time.",
+    "Chrome and Edge display store users; Firefox reports average daily users.",
+    "Usage populations may overlap across browsers and must not be presented as unique users."
+  ],
+  "stores": {
+    "chrome": {
+      "users": 6000,
+      "rating": 4.5,
+      "ratingCount": 20,
+      "version": "2.4.0",
+      "source": "https://chromewebstore.google.com/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh"
+    },
+    "firefox": {
+      "averageDailyUsers": 86,
+      "rating": 4.0,
+      "ratingCount": 4,
+      "version": "2.4.0",
+      "source": "https://addons.mozilla.org/api/v5/addons/addon/content-edit-blur/"
+    },
+    "edge": {
+      "users": 3712,
+      "rating": 5.0,
+      "ratingCount": 4,
+      "version": "2.4.0",
+      "source": "https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl"
+    },
+    "github": {
+      "stars": 39,
+      "forks": 8,
+      "source": "https://api.github.com/repos/HasanAboShally/web-content-edit-and-blur--browser-extension"
+    }
+  },
+  "searchRank": {
+    "chrome": {
+      "blur webpage": 2,
+      "redact screenshot": null,
+      "edit webpage": null,
+      "annotate webpage": null,
+      "webpage mockup": null,
+      "screen share privacy": null,
+      "bug report annotation": null
+    },
+    "firefox": {
+      "redact screenshot": 3,
+      "annotate webpage": 8,
+      "blur webpage": null,
+      "edit webpage": null
+    }
+  },
+  "nullRankMeaning": "Not present in the first ten Chrome results or first Firefox results page examined."
+}

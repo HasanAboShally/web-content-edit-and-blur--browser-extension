@@ -7,7 +7,9 @@ import { chromium } from 'playwright';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const source = fs.readFileSync(path.join(root, 'store-assets', 'showcase.html'));
+const promoSource = fs.readFileSync(path.join(root, 'store-assets', 'promo-card.html'));
 const outputDir = path.join(root, 'store-assets', 'screenshots');
+const promoDir = path.join(root, 'store-assets', 'promo');
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ceb-store-shots-'));
 const outputs = [
   '01-edit-and-smart-pick.png',
@@ -17,9 +19,33 @@ const outputs = [
   '05-rules-and-site-scope.png',
 ];
 
+const staticRoutes = new Map([
+  ['/images/app-icon-128.png', [path.join(root, 'images', 'app-icon-128.png'), 'image/png']],
+  ['/fonts/instrument-sans-400.woff2', [path.join(root, 'docs', 'fonts', 'instrument-sans-400.woff2'), 'font/woff2']],
+  ['/fonts/instrument-sans-600.woff2', [path.join(root, 'docs', 'fonts', 'instrument-sans-600.woff2'), 'font/woff2']],
+  ['/fonts/instrument-serif-400.woff2', [path.join(root, 'docs', 'fonts', 'instrument-serif-400.woff2'), 'font/woff2']],
+]);
+
 const server = http.createServer((request, response) => {
-  if (request.url === '/favicon.ico') {
+  const pathname = new URL(request.url, 'http://local').pathname;
+  if (pathname === '/favicon.ico') {
     response.writeHead(204).end();
+    return;
+  }
+  const staticRoute = staticRoutes.get(pathname);
+  if (staticRoute) {
+    response.writeHead(200, {
+      'Content-Type': staticRoute[1],
+      'Cache-Control': 'no-store',
+    });
+    fs.createReadStream(staticRoute[0]).pipe(response);
+    return;
+  }
+  if (pathname === '/promo-card.html') {
+    response.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+    }).end(promoSource);
     return;
   }
   response.writeHead(200, {
@@ -92,8 +118,21 @@ async function drag(from, to, steps = 8) {
   await page.waitForTimeout(180);
 }
 
+async function capturePromo(name, width, height) {
+  if (page) await page.close();
+  page = await context.newPage();
+  await page.setViewportSize({ width, height });
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' });
+  await page.goto(`${base}/promo-card.html`, { waitUntil: 'load' });
+  await page.evaluate(() => document.fonts.ready);
+  const file = path.join(promoDir, name);
+  await page.screenshot({ path: file, animations: 'disabled' });
+  console.log(`Created ${path.relative(root, file)}`);
+}
+
 try {
   fs.mkdirSync(outputDir, { recursive: true });
+  fs.mkdirSync(promoDir, { recursive: true });
   context = await chromium.launchPersistentContext(profile, {
     channel: 'chromium',
     headless: true,
@@ -114,8 +153,6 @@ try {
   await page.evaluate(() => {
     document.getElementById('headline').textContent = 'Launch performance review';
   });
-  await shot.activate('blur');
-  await waitForUi();
   await page.hover('#conversion-value');
   await capture(1, shot.errors);
 
@@ -182,6 +219,9 @@ try {
     if (body) body.scrollTop = body.scrollHeight;
   });
   await capture(5, shot.errors);
+
+  await capturePromo('small-promo-tile.png', 440, 280);
+  await capturePromo('marquee-promo-tile.png', 1400, 560);
 
   if (workerErrors.length) throw new Error(`Service worker errors: ${workerErrors.join(' | ')}`);
 } finally {

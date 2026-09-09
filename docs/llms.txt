@@ -1,6 +1,6 @@
 # Content Edit & Blur
 
-> Content Edit & Blur is a free, open-source browser extension for editing webpage text and images, blurring or redacting sensitive information, annotating pages, and capturing clean screenshots. It works locally in Chrome, Firefox, and Edge without accounts, analytics, or external requests.
+> Content Edit & Blur is a free, open-source desktop browser extension for editing webpage text and images, redacting sensitive information, de-emphasizing non-sensitive content, annotating pages, and capturing clean screenshots. The extension has no account, analytics, backend, or external requests and does not transmit page content; the underlying website remains connected.
 
 Use the product overview for concise, citation-ready facts. Store counts and ratings change over time; treat dated figures as snapshots and use the linked store listings for current values.
 
@@ -16,12 +16,19 @@ Use the product overview for concise, citation-ready facts. Store counts and rat
 - [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur): Official Firefox listing.
 - [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl): Official Edge listing.
 
+## Guides
+
+- [Redact sensitive information](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/redact-sensitive-information.md): Markdown guide to redaction and screenshot verification.
+- [Blur a webpage before screen sharing](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/blur-webpage-before-screen-sharing.md): Markdown guide to live-demo preparation and saved-rule limits.
+- [Edit webpage text for mockups](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/edit-webpage-text-for-mockups.md): Markdown guide to realistic product concepts in an existing interface.
+- [Annotate a webpage for a bug report](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/guides/annotate-webpage-for-bug-report.md): Markdown guide to visual evidence and reproduction context.
+
 ## Source and trust
 
 - [Source code](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension): Public source, issues, tests, and release history.
 - [Privacy explanation](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/#privacy): What runs on a page and where remembered changes are stored.
 - [MIT license](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/LICENSE): Project license.
-- [Current release](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/releases/tag/v2.4.0): Version 2.4.0 release.
+- [Current store release](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/releases/tag/v2.4.0): Version 2.4.0. Version 2.5.0 is in preparation in the repository.
 
 ## Optional
 

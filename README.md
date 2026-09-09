@@ -5,11 +5,13 @@
 </p>
 
 <p align="center">
-  <strong>Edit, blur, redact and annotate any webpage — for mockups, screenshots and screen shares.</strong>
+  <strong>Edit, blur, redact and annotate supported webpages — for mockups, screenshots and screen shares.</strong>
 </p>
 
 <p align="center">
   <a href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh"><img src="https://img.shields.io/chrome-web-store/v/adgnogkndmhcblbonkhgfbbngeghpboh?label=Chrome&logo=googlechrome&logoColor=white" alt="Chrome"></a>
+  <a href="https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh"><img src="https://img.shields.io/chrome-web-store/users/adgnogkndmhcblbonkhgfbbngeghpboh?label=Chrome%20users" alt="Chrome users"></a>
+  <a href="https://chromewebstore.google.com/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh/reviews"><img src="https://img.shields.io/chrome-web-store/rating/adgnogkndmhcblbonkhgfbbngeghpboh?label=Chrome%20rating" alt="Chrome Web Store rating"></a>
   <a href="https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur"><img src="https://img.shields.io/amo/v/content-edit-blur?label=Firefox&logo=firefox&logoColor=white" alt="Firefox"></a>
   <a href="https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl"><img src="https://img.shields.io/badge/Edge-listed-blue?logo=microsoftedge&logoColor=white" alt="Edge"></a>
   <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/actions/workflows/ci.yml"><img src="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -21,7 +23,18 @@
   <a href="CHANGELOG.md">Changelog</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="ARCHITECTURE.md">Architecture</a> ·
+  <a href="https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/discussions">Discussions</a> ·
   <a href="https://github.com/sponsors/HasanAboShally">Sponsor</a>
+</p>
+
+<p align="center">
+  <a href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/#demo">
+    <img src="docs/guide-assets/edit-webpage-text-for-mockups.webp" alt="Content Edit & Blur editing a dashboard headline directly on the webpage" width="900">
+  </a>
+</p>
+
+<p align="center">
+  <strong><a href="https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/#demo">Try the live demo — no installation required</a></strong>
 </p>
 
 ## Install
@@ -102,7 +115,8 @@ own at `chrome://extensions/shortcuts`.
 
 ## Privacy
 
-Works entirely offline. No data collection, no telemetry, no external requests.
+The extension has no backend, data collection, telemetry or external requests. The
+underlying website remains connected and may observe DOM changes while you edit it.
 
 | Permission | Why |
 |---|---|
@@ -122,6 +136,11 @@ Content Edit & Blur stays free, open source, and free of tracking. If it has sav
 time, you can [support ongoing maintenance through GitHub Sponsors](https://github.com/sponsors/HasanAboShally)
 with a one-time or monthly contribution. There are no locked features or in-extension
 prompts attached to sponsorship.
+
+If it has helped your work, an honest review helps other people find it:
+[Chrome](https://chromewebstore.google.com/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh/reviews) ·
+[Firefox](https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur/reviews/) ·
+[Edge](https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl).
 
 ## Contributing
 

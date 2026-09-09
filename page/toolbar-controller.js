@@ -225,6 +225,15 @@
         });
         on(toolbar.querySelector('#ceb-btn-export'), 'click', downloadExport);
         on(toolbar.querySelector('#ceb-btn-import'), 'click', promptImport);
+
+        on(toolbar.querySelector('#ceb-btn-review'), 'click', () => {
+            hideReviewPrompt();
+            sendToBackground({ action: 'openReviewPage' });
+        });
+        on(toolbar.querySelector('#ceb-btn-review-dismiss'), 'click', () => {
+            hideReviewPrompt();
+            sendToBackground({ action: 'dismissReviewPrompt' });
+        });
         
         // Master persistence toggle. Saved data stays local to this browser.
         const persistToggle = toolbar.querySelector('#ceb-persist-toggle');
@@ -244,6 +253,23 @@
         renderRulesPanel();
         checkSavedChanges();
         maybeShowOnboarding();
+    }
+
+    function showReviewPrompt() {
+        if (!toolbar) return;
+        const prompt = toolbar.querySelector('#ceb-review-prompt');
+        if (!prompt) return;
+        prompt.hidden = false;
+        requestAnimationFrame(() => {
+            if (toolbar) clampToolbarPosition(toolbar);
+        });
+    }
+
+    function hideReviewPrompt() {
+        if (!toolbar) return;
+        const prompt = toolbar.querySelector('#ceb-review-prompt');
+        if (prompt) prompt.hidden = true;
+        toolbar.querySelector('#ceb-btn-screenshot')?.focus();
     }
 
     function setUiMode(mode) {

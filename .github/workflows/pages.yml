@@ -6,6 +6,7 @@ on:
     paths:
       - 'docs/**'
       - 'images/**'
+      - 'scripts/indexnow.mjs'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -66,3 +67,17 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+
+  notify-search:
+    name: Notify search engines
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: deploy
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # IndexNow is a discovery hint, not part of the deployment. Keep the site live
+      # if the external service is temporarily unavailable, but leave a visible warning.
+      - name: Submit updated canonical URLs to IndexNow
+        continue-on-error: true
+        run: node scripts/indexnow.mjs

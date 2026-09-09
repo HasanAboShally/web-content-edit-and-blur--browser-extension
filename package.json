@@ -1,6 +1,6 @@
 {
   "name": "content-edit-blur",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "private": true,
   "description": "Browser extension to edit, blur, redact, and hide content on any webpage.",
   "type": "module",
@@ -23,7 +23,9 @@
     "preflight": "node scripts/preflight.mjs",
     "verify:packages": "node scripts/verify-packages.mjs",
     "publish:stores": "node scripts/publish.mjs",
-    "auth:chrome": "node scripts/oauth-token.mjs"
+    "auth:chrome": "node scripts/oauth-token.mjs",
+    "video:store": "node scripts/generate-demo-video.mjs",
+    "seo:notify": "node scripts/indexnow.mjs"
   },
   "devDependencies": {
     "playwright": "^1.62.1",

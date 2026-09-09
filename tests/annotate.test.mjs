@@ -285,6 +285,9 @@ check('an out-of-range size is clamped',
 // ---------- Screenshot hides the extension's own chrome ----------
 check('activate annotate for capture', (await activate('annotate')) === 'ok');
 await page.waitForTimeout(700);
+await sw.evaluate(() => chrome.storage.local.set({
+  reviewPrompt: { successfulScreenshots: 2, prompted: false, dismissed: false, reviewed: false },
+}));
 const capture = await page.evaluate(async () => {
   const tb = document.getElementById('ceb-toolbar');
   const overlay = document.getElementById('ceb-annotate-overlay');
@@ -305,6 +308,50 @@ check('toolbar is hidden while capturing', capture.sawToolbarHidden === true, JS
 check('annotate overlay is hidden while capturing', capture.sawOverlayHidden === true, JSON.stringify(capture));
 check('toolbar comes back after capturing',
   capture.visibleAfter !== 'hidden', capture.visibleAfter);
+
+const reviewPrompt = await page.evaluate(() => {
+  const prompt = document.getElementById('ceb-review-prompt');
+  return {
+    visible: Boolean(prompt && !prompt.hidden),
+    copy: prompt?.textContent.replace(/\s+/g, ' ').trim() || '',
+    focused: document.activeElement?.id || '',
+  };
+});
+const reviewState = await readKey('reviewPrompt');
+check('the third successful screenshot offers one honest review prompt',
+  reviewPrompt.visible
+    && /honest store review/i.test(reviewPrompt.copy)
+    && reviewState?.successfulScreenshots === 3
+    && reviewState?.prompted === true
+    && reviewPrompt.focused !== 'ceb-btn-review',
+  JSON.stringify({ prompt: reviewPrompt, state: reviewState }));
+
+const reviewUrls = await sw.evaluate(() => ({
+  chrome: reviewUrlForUserAgent('Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36'),
+  edge: reviewUrlForUserAgent('Mozilla/5.0 Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0'),
+  firefox: reviewUrlForUserAgent('Mozilla/5.0 Firefox/142.0'),
+}));
+check('the review action targets the current browser store',
+  /chromewebstore\.google\.com\/.+\/reviews$/.test(reviewUrls.chrome)
+    && /microsoftedge\.microsoft\.com\/addons/.test(reviewUrls.edge)
+    && /addons\.mozilla\.org\/.+\/reviews\/$/.test(reviewUrls.firefox),
+  JSON.stringify(reviewUrls));
+
+await page.click('#ceb-btn-review-dismiss');
+await page.waitForTimeout(250);
+const dismissedReview = await readKey('reviewPrompt');
+const promptHidden = await page.locator('#ceb-review-prompt').evaluate(el => el.hidden);
+check('No thanks permanently dismisses the review prompt without rating the extension',
+  promptHidden && dismissedReview?.dismissed === true && dismissedReview?.reviewed === false,
+  JSON.stringify(dismissedReview));
+
+await page.click('#ceb-btn-screenshot');
+await page.waitForTimeout(1200);
+const afterDismiss = await page.evaluate(() => ({
+  hidden: document.getElementById('ceb-review-prompt')?.hidden,
+}));
+check('later screenshots do not repeat a dismissed review prompt',
+  afterDismiss.hidden === true, JSON.stringify(afterDismiss));
 
 // ---------- Essentials keeps common tools and hides only the specialized Step ----------
 const essentialTools = await page.evaluate(async () => {

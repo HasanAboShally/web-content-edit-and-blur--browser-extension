@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Content Edit &amp; Blur store promotion</title>
+<style>
+@font-face{font-family:CEB Sans;src:url('/fonts/instrument-sans-600.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:CEB Sans;src:url('/fonts/instrument-sans-400.woff2') format('woff2');font-weight:400;font-display:swap}
+@font-face{font-family:CEB Serif;src:url('/fonts/instrument-serif-400.woff2') format('woff2');font-weight:400;font-display:swap}
+*{box-sizing:border-box}
+html,body{width:100%;height:100%;margin:0;overflow:hidden}
+body{background:#f7f5f0;color:#17171a;font-family:CEB Sans,-apple-system,BlinkMacSystemFont,sans-serif}
+.canvas{position:relative;width:100%;height:100%;padding:50px 58px;overflow:hidden}
+.canvas::before{content:'';position:absolute;inset:0 0 auto;height:10px;background:#ff5c16}
+.canvas::after{content:'';position:absolute;right:-140px;bottom:-260px;width:720px;height:720px;border:1px solid rgba(255,92,22,.18);border-radius:50%}
+.brand{display:flex;align-items:center;gap:14px;font-size:20px;font-weight:600}
+.brand img{width:46px;height:46px;border-radius:12px}
+h1{max-width:740px;margin:78px 0 20px;font:400 clamp(62px,6vw,88px)/.92 CEB Serif,Georgia,serif;letter-spacing:-.035em}
+h1 em{color:#c2410c;font-style:italic}
+.sub{max-width:580px;margin:0;color:#5f5e58;font-size:21px;line-height:1.42}
+.tags{display:flex;gap:9px;margin-top:34px}
+.tags span{padding:8px 11px;border:1px solid #cec8b9;border-radius:7px;background:#fffefb;font-size:13px;font-weight:600}
+.window{position:absolute;top:58px;right:54px;width:480px;height:440px;border:1px solid #cec8b9;border-radius:16px;background:#fffefb;box-shadow:0 34px 70px -38px rgba(57,46,30,.48);overflow:hidden}
+.chrome{display:flex;align-items:center;gap:7px;height:46px;padding:0 14px;border-bottom:1px solid #e3ded2;background:#efece5}
+.chrome i{width:9px;height:9px;border-radius:50%;background:#c8c1b3}
+.url{height:22px;margin-left:7px;flex:1;border:1px solid #ded8cb;border-radius:6px;background:#fff;color:#8a857b;font:400 9px/20px ui-monospace,monospace;padding:0 9px}
+.page{padding:25px 26px}
+.page-label{color:#8a857b;font-size:10px;font-weight:600;letter-spacing:.13em;text-transform:uppercase}
+.page h2{margin:10px 0 22px;font:400 33px/1 CEB Serif,Georgia,serif}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.metric{position:relative;min-height:96px;padding:14px;border:1px solid #e3ded2;border-radius:10px;background:#fff}
+.metric span{color:#7a756b;font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.metric strong{display:block;margin-top:11px;font:400 24px/1 CEB Serif,Georgia,serif}
+.metric.redacted strong{color:transparent}
+.metric.redacted strong::after{content:'';position:absolute;left:14px;right:42px;bottom:18px;height:20px;border-radius:2px;background:#17171a}
+.selection{margin-top:13px;padding:13px 14px;border:2px solid #ff5c16;border-radius:9px;background:rgba(255,92,22,.06);font-size:12px;font-weight:600}
+.toolbar{position:absolute;right:24px;bottom:22px;width:208px;padding:11px;border:1px solid #d7deea;border-radius:12px;background:#fff;box-shadow:0 17px 40px rgba(31,42,61,.18)}
+.toolbar-title{margin-bottom:8px;color:#25314a;font-size:10px;font-weight:600}
+.tools{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.tool{padding:8px 2px;border:1px solid #dae1ec;border-radius:7px;color:#5f6c80;font-size:9px;text-align:center}
+.tool.active{border-color:#2563eb;background:#eaf1ff;color:#1d4ed8}
+@media(max-width:600px){
+  .canvas{padding:24px 26px}
+  .canvas::before{height:7px}
+  .canvas::after{right:-150px;bottom:-190px;width:380px;height:380px}
+  .brand{gap:9px;font-size:13px}
+  .brand img{width:30px;height:30px;border-radius:8px}
+  h1{max-width:350px;margin:42px 0 14px;font-size:48px;line-height:.88}
+  .sub{max-width:300px;font-size:15px;line-height:1.35}
+  .tags{display:none}
+  .window{display:none}
+}
+</style>
+</head>
+<body>
+<main class="canvas">
+  <div class="brand"><img src="/images/app-icon-128.png" alt=""><span>Content Edit &amp; Blur</span></div>
+  <h1>Edit the page.<br><em>Protect the details.</em></h1>
+  <p class="sub">Clean mockups and safer screenshots, directly in your browser.</p>
+  <div class="tags"><span>Free</span><span>Open source</span><span>No tracking</span></div>
+  <div class="window" aria-hidden="true">
+    <div class="chrome"><i></i><i></i><i></i><div class="url">app.example.com/customer</div></div>
+    <div class="page">
+      <div class="page-label">Account overview</div>
+      <h2>Launch performance</h2>
+      <div class="metrics">
+        <div class="metric"><span>Conversion</span><strong>8.42%</strong></div>
+        <div class="metric redacted"><span>API key</span><strong>sk_live_4F82A9</strong></div>
+      </div>
+      <div class="selection">Customer email selected for redaction</div>
+    </div>
+    <div class="toolbar">
+      <div class="toolbar-title">Privacy</div>
+      <div class="tools"><div class="tool">Blur</div><div class="tool">Hide</div><div class="tool active">Redact</div></div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

@@ -24,6 +24,11 @@ bundler or runtime dependency without a strong reason. `playwright` drives brows
 | `tests/` | Browser suites plus publishing and OAuth suites that stub external APIs. |
 | `store-assets/` | Source icon, shared listing copy and store screenshots. Not packaged with the extension. |
 
+The public website also includes canonical task guides in `docs/guides/`, shared
+guide styling in `docs/guide.css`, and machine-readable discovery through
+`docs/sitemap.xml`, `docs/llms.txt` and `docs/index.md`. Keep their product facts,
+version references and links aligned with the homepage and store copy.
+
 ## Golden rules
 
 1. **The scripts under `page/` are one ordered classic-script program.** Their top-level
@@ -132,6 +137,21 @@ These cost real debugging time. Ignore them and you will chase ghosts.
 - **A scratch diagnostic suite must live in `tests/`, not `/tmp`** — `playwright` won't
   resolve from outside the repo. Delete it when done.
 - `.ceb-tb-row` is a CSS grid, so tool and swatch rows need an explicit `display: flex`.
+
+## Growth and review discipline
+
+- The review request appears only after the third successful screenshot. It is
+  non-modal, asks for an **honest** review, never sentiment-gates, and never asks for
+  a particular rating. `No thanks` is permanent. Keep its count and dismissal state
+  local, and do not add telemetry to measure it.
+- Store ranking claims must distinguish Chrome/Edge store users from Firefox average
+  daily users. The populations can overlap; do not present their sum as unique users
+  or synthesize a cross-store rating.
+- Regenerate screenshots and promotional tiles with `npm run screenshots:store` and
+  the captioned MP4 with `npm run video:store`. The shared listing source documents
+  what still requires manual dashboard or YouTube publication.
+- Canonical guides must be substantial, factual and internally linked. Add every new
+  indexable page to the sitemap, llms.txt, Markdown overview and website smoke test.
 
 ## Debugging discipline that has paid off
 

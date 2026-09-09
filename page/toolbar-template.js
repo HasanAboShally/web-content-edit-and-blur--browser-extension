@@ -240,6 +240,16 @@
                     </button>
                 </div>
             </div>
+            <aside class="ceb-review-prompt" id="ceb-review-prompt" aria-live="polite" hidden>
+                <div class="ceb-review-copy">
+                    <strong>Has this saved you time?</strong>
+                    <span>An honest store review helps other people find it.</span>
+                </div>
+                <div class="ceb-review-actions">
+                    <button class="ceb-review-primary" type="button" id="ceb-btn-review">Leave a review</button>
+                    <button class="ceb-review-dismiss" type="button" id="ceb-btn-review-dismiss">No thanks</button>
+                </div>
+            </aside>
             <div class="ceb-toolbar-footer">
                 <div class="ceb-tb-stats" id="ceb-stats"></div>
                 <label class="ceb-tb-toggle"

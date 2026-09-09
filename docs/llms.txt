@@ -1,0 +1,30 @@
+# Content Edit & Blur
+
+> Content Edit & Blur is a free, open-source browser extension for editing webpage text and images, blurring or redacting sensitive information, annotating pages, and capturing clean screenshots. It works locally in Chrome, Firefox, and Edge without accounts, analytics, or external requests.
+
+Use the product overview for concise, citation-ready facts. Store counts and ratings change over time; treat dated figures as snapshots and use the linked store listings for current values.
+
+## Product
+
+- [Product overview](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/index.md): Concise capabilities, privacy behavior, browser support, usage, and dated adoption figures in Markdown.
+- [Interactive website](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/): Product landing page with a working browser-based demo.
+- [Project README](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/README.md): Installation, tools, shortcuts, permissions, privacy, and contribution details.
+
+## Install
+
+- [Chrome Web Store](https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh): Official Chrome listing.
+- [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/content-edit-blur): Official Firefox listing.
+- [Microsoft Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/content-edit-blur/chlpcaigaedflhkfgmhkpknlcchkeodl): Official Edge listing.
+
+## Source and trust
+
+- [Source code](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension): Public source, issues, tests, and release history.
+- [Privacy explanation](https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/#privacy): What runs on a page and where remembered changes are stored.
+- [MIT license](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/LICENSE): Project license.
+- [Current release](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/releases/tag/v2.4.0): Version 2.4.0 release.
+
+## Optional
+
+- [Architecture](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/ARCHITECTURE.md): Runtime boundaries, state model, persistence, and security-relevant design.
+- [Changelog](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/blob/master/CHANGELOG.md): Version-by-version changes.
+- [Issue tracker](https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension/issues): Bugs and feature requests.

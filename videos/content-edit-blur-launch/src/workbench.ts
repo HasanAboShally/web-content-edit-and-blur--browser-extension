@@ -1,5 +1,6 @@
-import {LaunchFilm} from './LaunchFilm';
+import {LaunchFilm, REDACTION_CUTS} from './LaunchFilm';
 import {SFX_CUES} from './AudioBed';
+import {RedactionCut} from './components/RedactionCut';
 import {AnnotateScene} from './scenes/AnnotateScene';
 import {CaptureScene} from './scenes/CaptureScene';
 import {EditScene} from './scenes/EditScene';
@@ -17,7 +18,7 @@ export const WORKBENCH = {
   height: HEIGHT,
   total: TOTAL_FRAMES,
   background: '#f7f5f0',
-  revision: 'launch-v1',
+  revision: 'launch-v2',
   shots: [
     {id: 'hook', label: '01 · Promise', ...SHOTS.hook, component: HookScene},
     {id: 'hero', label: '02 · Product reveal', ...SHOTS.hero, component: HeroScene},
@@ -28,7 +29,14 @@ export const WORKBENCH = {
     {id: 'capture', label: '07 · Capture and trust', ...SHOTS.capture, component: CaptureScene},
     {id: 'finale', label: '08 · Launch finale', ...SHOTS.finale, component: FinaleScene},
   ].map(({to: _to, ...shot}) => shot),
-  transitions: [],
+  transitions: REDACTION_CUTS.map((cut, index) => ({
+    id: cut.id,
+    label: `Redaction cut ${index + 1}`,
+    from: cut.from,
+    duration: cut.duration,
+    component: RedactionCut,
+    props: {direction: cut.direction},
+  })),
   captions: [],
   overlays: [],
   sfx: SFX_CUES.map((cue) => ({from: cue.from, duration: cue.duration, src: `audio/sfx/${cue.src}`, volume: cue.volume})),

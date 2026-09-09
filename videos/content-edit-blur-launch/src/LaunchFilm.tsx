@@ -25,7 +25,17 @@ const scenes = [
   [SHOTS.finale, FinaleScene],
 ] as const;
 
-const cuts = [SHOTS.hero.from, SHOTS.privacyTitle.from, SHOTS.annotate.from, SHOTS.finale.from];
+export const REDACTION_CUTS = [
+  SHOTS.hero.from,
+  SHOTS.privacyTitle.from,
+  SHOTS.annotate.from,
+  SHOTS.finale.from,
+].map((cut, index) => ({
+  id: `redaction-cut-${index + 1}`,
+  from: cut - 7,
+  duration: 16,
+  direction: index % 2 ? ('right' as const) : ('left' as const),
+}));
 
 export const LaunchFilm: React.FC<LaunchFilmProps> = ({bgm}) => (
   <AbsoluteFill style={{background: '#f7f5f0'}}>
@@ -34,9 +44,9 @@ export const LaunchFilm: React.FC<LaunchFilmProps> = ({bgm}) => (
         <Scene />
       </Sequence>
     ))}
-    {cuts.map((cut, index) => (
-      <Sequence key={cut} from={cut - 7} durationInFrames={16} name={`Redaction cut ${index + 1}`}>
-        <RedactionCut direction={index % 2 ? 'right' : 'left'} />
+    {REDACTION_CUTS.map((cut, index) => (
+      <Sequence key={cut.id} from={cut.from} durationInFrames={cut.duration} name={`Redaction cut ${index + 1}`}>
+        <RedactionCut direction={cut.direction} />
       </Sequence>
     ))}
     <AudioBed bgm={bgm} />

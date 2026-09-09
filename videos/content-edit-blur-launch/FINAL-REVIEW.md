@@ -30,3 +30,5 @@ The reviewer noted that the finale trust line was below the recommended supporti
 - `analysis/contact-sheet.jpg`
 - `out/review/`
 - `AUDIO-LICENSES.md`
+
+The ShotCraft workbench import was also compared against the original composition at 11 representative frames, including the fully covered point of all four redaction transitions. Every frame matched exactly: 0 differing pixels out of 2,073,600.

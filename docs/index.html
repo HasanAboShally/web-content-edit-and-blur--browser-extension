@@ -275,6 +275,16 @@ h1 .l2{display:block;font-style:italic;color:var(--muted)}
   background:var(--fg);color:var(--bg);border-color:var(--fg);font-weight:600;
 }
 .btn-primary:hover{background:var(--fg-hi);border-color:var(--fg-hi)}
+.hero-proof{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  margin:0 0 7px;color:var(--muted);font-size:13px;line-height:1.4;
+}
+.hero-proof-stat{display:inline-flex;align-items:baseline;gap:5px;white-space:nowrap}
+.hero-proof strong{
+  color:var(--fg);font-weight:600;letter-spacing:-.01em;
+  font-variant-numeric:tabular-nums;
+}
+.hero-proof-sep{width:1px;height:14px;background:var(--line-2);flex:none}
 .hero-note{font-family:var(--mono);font-size:11.5px;color:var(--dim);letter-spacing:.06em}
 
 /* Load choreography */
@@ -645,7 +655,18 @@ footer{border-top:1px solid var(--line);padding:38px 0 46px}
         Edge
       </a>
     </div>
-    <p class="hero-note rise d6">FREE &amp; OPEN SOURCE · NO ACCOUNT · NO TRACKING</p>
+    <!-- Public store figures checked 2026-09-09: Chrome 6,000 users and 4.5/5
+         from 20 ratings; Firefox 86 average daily users and 4.0/5 from 4;
+         Edge 3,712 users and 5.0/5 from 4. The user total is rounded down. -->
+    <div class="rise d6">
+      <p class="hero-proof">
+        <span class="sr">Across Chrome, Firefox and Edge:</span>
+        <span class="hero-proof-stat"><strong>9,700+</strong> users</span>
+        <span class="hero-proof-sep" aria-hidden="true"></span>
+        <span class="hero-proof-stat"><strong>4.5 / 5</strong> from 28 ratings</span>
+      </p>
+      <p class="hero-note">FREE &amp; OPEN SOURCE · NO ACCOUNT · NO TRACKING</p>
+    </div>
   </div>
 </header>
 

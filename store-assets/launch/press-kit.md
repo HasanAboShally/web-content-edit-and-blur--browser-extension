@@ -49,7 +49,8 @@ Counts change. Recheck the official listings before publication.
 - Product screenshots: `../screenshots/`
 - 440×280 store tile: `../promo/small-promo-tile.png`
 - 1400×560 marquee tile: `../promo/marquee-promo-tile.png`
-- Captioned demo video source: `../video/content-edit-blur-demo.mp4`
+- Professional launch video: `../video/content-edit-blur-launch.mp4`
+- Music-free launch master: `../video/content-edit-blur-launch-no-bgm.mp4`
 - Social card: `../../docs/og-image.png`
 - High-resolution icon: `../new-icon.png`
 

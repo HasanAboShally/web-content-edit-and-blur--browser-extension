@@ -55,7 +55,7 @@ https://github.com/HasanAboShally/web-content-edit-and-blur--browser-extension
 ## Assets
 
 - Thumbnail: `assets/product-hunt-thumbnail.png` (240×240)
-- Demo video: `../video/content-edit-blur-demo.mp4` (upload to YouTube before using in browser stores)
+- Launch video: `../video/content-edit-blur-launch.mp4` (upload to YouTube before using in browser stores)
 - Social preview: `../../docs/og-image.png` (1200×630)
 
 ## Launch checklist

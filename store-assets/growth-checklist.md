@@ -35,8 +35,8 @@ Code, content and media in this repository are complete when their boxes are che
 - [ ] Upload `video/content-edit-blur-launch.mp4` to YouTube with advertisements disabled
 - [ ] Add the resulting YouTube URL to Chrome and Edge listing drafts
 - [ ] Upload `promo/small-promo-tile.png` and `promo/marquee-promo-tile.png`
-- [ ] Run `npm run release:check`
-- [ ] Run the authenticated all-store credential dry-run
+- [x] Run `npm run release:check`
+- [x] Run the authenticated all-store credential dry-run
 
 ## After all stores publish version 2.5.0
 

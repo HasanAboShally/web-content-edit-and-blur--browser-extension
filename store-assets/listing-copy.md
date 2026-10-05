@@ -86,7 +86,7 @@ https://hasanaboshally.github.io/web-content-edit-and-blur--browser-extension/
 - Functional fallback: `video/content-edit-blur-demo.mp4` (1280×720, captioned, no audio)
 - Generate the launch film with: `npm run video:launch`
 - Generate the functional fallback with: `npm run video:store`
-- Upload to YouTube with advertisements disabled, then add its URL to Chrome and Edge listings.
+- YouTube: https://www.youtube.com/watch?v=OIFJUMEOa-o (linked from the Chrome and Edge listings)
 
 ## Launch assets
 

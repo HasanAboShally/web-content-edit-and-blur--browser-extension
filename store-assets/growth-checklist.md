@@ -26,15 +26,15 @@ Code, content and media in this repository are complete when their boxes are che
 ## Before tagging version 2.5.0
 
 - [ ] Review the review-prompt wording in a real unpacked Chrome, Firefox and Edge install
-- [ ] Upload the latest listing copy and media drafts to all three store dashboards
-- [ ] Change the Firefox listing license from MPL 2.0 to MIT, or document an intentional dual license
-- [ ] Confirm Chrome and Edge visibility includes all intended markets
+- [x] Upload the latest listing copy and media drafts to all three store dashboards
+- [x] Change the Firefox listing license from MPL 2.0 to MIT, or document an intentional dual license
+- [x] Confirm Chrome and Edge visibility includes all intended markets
 - [ ] Verify the GitHub Pages site in Google Search Console
 - [ ] Select the verified website as Chrome's Official URL
 - [ ] Complete Chrome publisher identity verification if still pending
-- [ ] Upload `video/content-edit-blur-launch.mp4` to YouTube with advertisements disabled
-- [ ] Add the resulting YouTube URL to Chrome and Edge listing drafts
-- [ ] Upload `promo/small-promo-tile.png` and `promo/marquee-promo-tile.png`
+- [x] Upload `video/content-edit-blur-launch.mp4` to YouTube: https://www.youtube.com/watch?v=OIFJUMEOa-o (ads cannot be disabled until the channel joins the YouTube Partner Program)
+- [x] Add the resulting YouTube URL to Chrome and Edge listing drafts
+- [x] Upload `promo/small-promo-tile.png` and `promo/marquee-promo-tile.png`
 - [x] Run `npm run release:check`
 - [x] Run the authenticated all-store credential dry-run
 

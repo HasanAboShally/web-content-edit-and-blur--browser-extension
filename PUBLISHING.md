@@ -177,7 +177,9 @@ submission is still failing; check the Chrome item status directly.
   Chrome and Edge remain in review.
 - **Edge:** complete both **Store listings** and **Privacy** before submission.
   The Publish API submits the current Partner Center draft with the package, so
-  do not also click the dashboard's top-level Publish button.
+  do not also click the dashboard's top-level Publish button. Re-check Privacy on
+  every release: required permission justifications can be blank even while an
+  earlier version is live.
 - **Edge legacy media:** migrated screenshot records may have inert delete
   controls. Prefer the UI, but Partner Center's own authenticated operation is
   `DELETE .../listings/Assets/{assetId}`. Identify the exact record from

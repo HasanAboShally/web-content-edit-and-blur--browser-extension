@@ -500,12 +500,12 @@ check('growth surfaces stay factual and complete', () => {
       || baseline.stores?.edge?.users !== 3712) {
     throw new Error('growth baseline is missing the verified dated store snapshot');
   }
-  const chromeUsers = baseline.stores.chrome.users.toLocaleString('en-US');
-  const edgeUsers = baseline.stores.edge.users.toLocaleString('en-US');
-  if (!website.includes(`<strong>${chromeUsers}</strong> Chrome users`)
-      || !website.includes(`<strong>${edgeUsers}</strong> Edge users`)
-      || /Across Chrome, Firefox and Edge:|\b10K\+|10,000\+/i.test(website)) {
-    throw new Error('homepage social proof must label each store population and never present a cross-store total');
+  const storeUsers = baseline.stores.chrome.users + baseline.stores.edge.users
+    + baseline.stores.firefox.averageDailyUsers;
+  const combined = `${(Math.floor(storeUsers / 100) * 100).toLocaleString('en-US')}+`;
+  if (!website.includes(`<strong>${combined}</strong> users across Chrome, Edge and Firefox`)
+      || (storeUsers < 10000 && /\b10K\+|10,000\+/i.test(website))) {
+    throw new Error(`homepage user total must be the rounded-down store sum (${combined})`);
   }
   return `${guides.length} guides, ${blueskyPosts.length} Bluesky drafts and dated baseline`;
 });

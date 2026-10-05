@@ -68,7 +68,7 @@ Public store figures checked on October 5, 2026:
 - Firefox Add-ons: 87 average daily users and 4.0 out of 5 from 4 ratings.
 - Microsoft Edge Add-ons: 3,712 users and 5.0 out of 5 from 4 ratings.
 
-These store figures are not one deduplicated user population: Firefox reports average daily users, while Chrome and Edge display store users, and the same person may use more than one browser. Counts and ratings change over time; use the official store links above for current values.
+These store figures are not one deduplicated user population: Firefox reports average daily users, while Chrome and Edge display store users, and the same person may use more than one browser. Added together, the stores report 9,700+ users. Counts and ratings change over time; use the official store links above for current values.
 
 ## Maintainer and support
 

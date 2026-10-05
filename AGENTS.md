@@ -144,9 +144,10 @@ These cost real debugging time. Ignore them and you will chase ghosts.
   non-modal, asks for an **honest** review, never sentiment-gates, and never asks for
   a particular rating. `No thanks` is permanent. Keep its count and dismissal state
   local, and do not add telemetry to measure it.
-- Store ranking claims must distinguish Chrome/Edge store users from Firefox average
-  daily users. The populations can overlap; do not present their sum as unique users
-  or synthesize a cross-store rating.
+- The homepage shows one combined user figure: Chrome and Edge store users plus Firefox
+  average daily users, rounded down to the hundred with a `+`, labelled with all three
+  stores. Keep per-store figures and the overlap note in `docs/index.md`, never call the
+  total unique people, and never synthesize a cross-store rating.
 - Regenerate screenshots and promotional tiles with `npm run screenshots:store` and
   the functional captioned MP4 with `npm run video:store`. The professional launch film
   lives in `videos/content-edit-blur-launch/` and renders both audio variants with

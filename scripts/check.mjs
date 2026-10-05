@@ -555,6 +555,32 @@ check('release-facing copy matches the manifest version', () => {
   return `v${manifest.version}`;
 });
 
+// Deleting a @keyframes block silently freezes every animation that names it: the
+// demo's Redact bar once stopped drawing when the hero styles that defined it went.
+check('website animations name defined keyframes', () => {
+  const guideDir = path.join(root, 'docs/guides');
+  const files = ['docs/index.html', 'docs/guide.css',
+    ...fs.readdirSync(guideDir).filter(file => file.endsWith('.html')).map(file => `docs/guides/${file}`)];
+  const sources = files.map(file => [file, fs.readFileSync(path.join(root, file), 'utf8')]);
+  const defined = new Set(sources.flatMap(([, css]) => [...css.matchAll(/@keyframes\s+([\w-]+)/g)].map(m => m[1])));
+  const keywords = new Set(['none', 'infinite', 'normal', 'reverse', 'alternate', 'alternate-reverse',
+    'forwards', 'backwards', 'both', 'running', 'paused', 'linear', 'ease', 'ease-in', 'ease-out',
+    'ease-in-out', 'step-start', 'step-end', 'initial', 'inherit', 'unset']);
+  const missing = [];
+  let used = 0;
+  for (const [file, css] of sources) {
+    for (const [, value] of css.matchAll(/animation(?:-name)?\s*:\s*([^;}"']+)/g)) {
+      for (const token of value.replace(/[\w-]+\([^)]*\)/g, ' ').split(/[\s,]+/)) {
+        if (!/^[a-z_-][\w-]*$/i.test(token) || keywords.has(token.toLowerCase())) continue;
+        used++;
+        if (!defined.has(token)) missing.push(`${file}: ${token}`);
+      }
+    }
+  }
+  if (missing.length) throw new Error(`no @keyframes for ${missing.join(', ')}`);
+  return `${used} animation references, all defined`;
+});
+
 // Chrome silently rejects the whole manifest past four suggested keys, which presents
 // as the service worker never registering.
 check('at most 4 commands declare a suggested_key', () => {

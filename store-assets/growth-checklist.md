@@ -29,9 +29,8 @@ Code, content and media in this repository are complete when their boxes are che
 - [x] Upload the latest listing copy and media drafts to all three store dashboards
 - [x] Change the Firefox listing license from MPL 2.0 to MIT, or document an intentional dual license
 - [x] Confirm Chrome and Edge visibility includes all intended markets
-- [ ] Verify the GitHub Pages site in Google Search Console
-- [ ] Select the verified website as Chrome's Official URL
-- [ ] Complete Chrome publisher identity verification if still pending
+- [x] Verify the GitHub Pages site in Google Search Console (HTML tag in `docs/index.html`)
+- [x] Complete Chrome publisher identity verification if still pending (not requested as of 2026-10-05)
 - [x] Upload `video/content-edit-blur-launch.mp4` to YouTube: https://www.youtube.com/watch?v=OIFJUMEOa-o (ads cannot be disabled until the channel joins the YouTube Partner Program)
 - [x] Add the resulting YouTube URL to Chrome and Edge listing drafts
 - [x] Upload `promo/small-promo-tile.png` and `promo/marquee-promo-tile.png`
@@ -43,6 +42,7 @@ Code, content and media in this repository are complete when their boxes are che
 - [ ] Change the website's structured `softwareVersion` and smoke-test `storeVersion` from 2.4.0 to 2.5.0
 - [ ] Change the homepage release badge from “Next” to the published release link
 - [ ] Update llms.txt and index.md to call 2.5.0 the current store release
+- [ ] Select the verified website as Chrome's Official URL (the listing is locked while a version is in review)
 - [ ] Submit `sitemap.xml` in Google Search Console and Bing Webmaster Tools
 - [ ] Submit the Chrome Featured nomination in `launch/curation-nominations.md`
 - [ ] Email the Firefox Recommended nomination only after the license metadata is aligned

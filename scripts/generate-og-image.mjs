@@ -11,6 +11,7 @@ const routes = new Map([
   ['/fonts/instrument-sans-400.woff2', [path.join(root, 'docs', 'fonts', 'instrument-sans-400.woff2'), 'font/woff2']],
   ['/fonts/instrument-sans-600.woff2', [path.join(root, 'docs', 'fonts', 'instrument-sans-600.woff2'), 'font/woff2']],
   ['/fonts/instrument-serif-400.woff2', [path.join(root, 'docs', 'fonts', 'instrument-serif-400.woff2'), 'font/woff2']],
+  ['/fonts/instrument-serif-400i.woff2', [path.join(root, 'docs', 'fonts', 'instrument-serif-400i.woff2'), 'font/woff2']],
 ]);
 
 const server = http.createServer((request, response) => {

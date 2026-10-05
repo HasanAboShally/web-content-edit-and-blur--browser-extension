@@ -44,7 +44,7 @@ Code, content and media in this repository are complete when their boxes are che
 - [ ] Update llms.txt and index.md to call 2.5.0 the current store release
 - [ ] Select the verified website as Chrome's Official URL (the listing is locked while a version is in review)
 - [ ] Submit `sitemap.xml` in Google Search Console and Bing Webmaster Tools
-- [ ] Submit the Chrome Featured nomination in `launch/curation-nominations.md`
+- [x] Chrome Featured nomination is not needed: the listing already shows the Featured badge (2026-10-05)
 - [ ] Email the Firefox Recommended nomination only after the license metadata is aligned
 - [ ] Publish Product Hunt or Show HN from the maintainer's account, not both on the same day
 - [ ] Use one task-specific social post and answer every substantive response

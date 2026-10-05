@@ -501,10 +501,11 @@ check('growth surfaces stay factual and complete', () => {
     throw new Error('growth baseline is missing the verified dated store snapshot');
   }
   const chromeUsers = baseline.stores.chrome.users.toLocaleString('en-US');
+  const edgeUsers = baseline.stores.edge.users.toLocaleString('en-US');
   if (!website.includes(`<strong>${chromeUsers}</strong> Chrome users`)
-      || !website.includes(`<strong>${baseline.stores.chrome.rating} / 5</strong> from ${baseline.stores.chrome.ratingCount} Chrome ratings`)
-      || website.includes('Across Chrome, Firefox and Edge:')) {
-    throw new Error('homepage social proof must use the source-qualified Chrome population');
+      || !website.includes(`<strong>${edgeUsers}</strong> Edge users`)
+      || /Across Chrome, Firefox and Edge:|\b10K\+|10,000\+/i.test(website)) {
+    throw new Error('homepage social proof must label each store population and never present a cross-store total');
   }
   return `${guides.length} guides, ${blueskyPosts.length} Bluesky drafts and dated baseline`;
 });

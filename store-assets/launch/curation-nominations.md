@@ -4,6 +4,8 @@ These drafts must be submitted by the publisher through the authenticated store 
 
 ## Chrome Featured badge nomination
 
+Not needed as of 2026-10-05: the Chrome listing already shows the Featured badge. Keep this draft only in case the badge is removed.
+
 **Extension:** Content Edit & Blur
 
 **Listing:** https://chrome.google.com/webstore/detail/content-edit-blur/adgnogkndmhcblbonkhgfbbngeghpboh
